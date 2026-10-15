@@ -206,11 +206,35 @@ function tunggakan() {
   }).filter(x => x.miss.length);
 }
 
-function waLink(a, miss) {
+// Gabungan tunggakan iuran + santunan per anggota
+function tunggakanAll() {
+  const base = new Map(tunggakan().map(x => [x.a.ID, x]));
+  return S.data.anggota.map(a => {
+    const b = base.get(a.ID) || { a, miss: [], total: 0 };
+    const sant = TG().filter(t => t.AnggotaID === a.ID && !t.TanggalBayar)
+      .map(t => ({ t, k: KM().find(x => x.ID === t.KematianID) })).filter(x => x.k);
+    return Object.assign({}, b, { sant, santTotal: sant.reduce((s, x) => s + x.t.Jumlah, 0) });
+  }).filter(x => x.miss.length || x.sant.length).sort((x, y) => (y.total + y.santTotal) - (x.total + x.santTotal));
+}
+
+function santNote(id) {
+  const x = tunggakanAll().find(y => y.a.ID === id);
+  if (!x || !x.sant.length) return '';
+  return '⚠ KK ini juga belum membayar santunan: ' + x.sant.map(s => esc(s.k.Almarhum) + ' (' + rp(s.t.Jumlah) + ')').join(', ') + '. Catat lewat tombol "Bayar santunan" di daftar tunggakan.';
+}
+
+function waLink(a, miss, sant) {
   let p = String(a.Telepon || '').replace(/\D/g, ''); if (!p) return '';
   if (p.startsWith('0')) p = '62' + p.slice(1);
-  const shown = miss.length > 6 ? miss.slice(0, 6).map(fmtPeriode).join(', ') + ' dan ' + (miss.length - 6) + ' bulan lainnya' : miss.map(fmtPeriode).join(', ');
-  const msg = 'Yth. ' + a.Nama + ', kami informasikan iuran ' + S.data.pengaturan.NamaSerikat + ' yang belum tercatat: ' + shown + '. Total ' + rp(miss.length * iurBulanan()) + '. Terima kasih.';
+  sant = sant || [];
+  const parts = [];
+  if (miss.length) {
+    const shown = miss.length > 6 ? miss.slice(0, 6).map(fmtPeriode).join(', ') + ' dan ' + (miss.length - 6) + ' bulan lainnya' : miss.map(fmtPeriode).join(', ');
+    parts.push('iuran ' + shown + ' (' + rp(miss.length * iurBulanan()) + ')');
+  }
+  if (sant.length) parts.push('santunan kematian ' + sant.map(s => s.k.Almarhum).join(', ') + ' (' + rp(sant.reduce((z, s) => z + s.t.Jumlah, 0)) + ')');
+  const total = miss.length * iurBulanan() + sant.reduce((z, s) => z + s.t.Jumlah, 0);
+  const msg = 'Yth. ' + a.Nama + ', kami informasikan yang belum tercatat di ' + S.data.pengaturan.NamaSerikat + ': ' + parts.join('; ') + '. Total ' + rp(total) + '. Terima kasih.';
   return 'https://wa.me/' + p + '?text=' + encodeURIComponent(msg);
 }
 
@@ -266,15 +290,17 @@ function vAnggota() {
 }
 
 function vIuran() {
-  const tg = tunggakan().sort((x, y) => y.miss.length - x.miss.length);
+  const tg = tunggakanAll();
   const q = S.f.iq.toLowerCase(), m = S.f.iuranM;
   const rows = S.data.iuran.filter(i => (!m || i.Periode === m) && (!q || nama(i.AnggotaID).toLowerCase().includes(q)))
     .sort((a, b) => b.Periode.localeCompare(a.Periode) || (b.TanggalBayar || '').localeCompare(a.TanggalBayar || ''));
   return `<div class="card"><div class="row between"><h3>Tunggakan (${tg.length} anggota)</h3><button class="primary sm" data-act="payIuran">+ Catat pembayaran</button></div>
-  ${tg.length ? `<div class="tw"><table><thead><tr><th>Anggota</th><th>Belum bayar</th><th class="n">Total</th><th></th></tr></thead><tbody>
-  ${tg.map(x => { const w = waLink(x.a, x.miss); return `<tr><td>${esc(x.a.Nama)}</td><td>${x.miss.length} bulan<div class="muted">${esc(fmtPeriode(x.miss[0]))}${x.miss.length > 1 ? ' – ' + esc(fmtPeriode(x.miss[x.miss.length - 1])) : ''}</div></td><td class="n out">${rp(x.total)}</td>
-  <td class="n"><button class="ghost sm" data-act="payIuran" data-id="${esc(x.a.ID)}">Catat bayar</button> ${w ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(w)}">WhatsApp</a>` : ''}</td></tr>`; }).join('')}</tbody></table></div>` : '<div class="empty">Semua anggota aktif sudah lunas 🎉</div>'}</div>
-  ${tgSantunanCard()}
+  ${tg.length ? `<div class="tw"><table><thead><tr><th>Anggota</th><th>Iuran belum bayar</th><th>Santunan belum bayar</th><th class="n">Total</th><th></th></tr></thead><tbody>
+  ${tg.map(x => { const w = waLink(x.a, x.miss, x.sant); return `<tr><td>${esc(x.a.Nama)}</td>
+  <td>${x.miss.length ? x.miss.length + ' bulan<div class="muted">' + esc(fmtPeriode(x.miss[0])) + (x.miss.length > 1 ? ' – ' + esc(fmtPeriode(x.miss[x.miss.length - 1])) : '') + '</div>' : '<span class="muted">-</span>'}</td>
+  <td>${x.sant.length ? rp(x.santTotal) + x.sant.map(s => '<div class="muted">' + esc(s.k.Almarhum) + ' · ' + rp(s.t.Jumlah) + '</div>').join('') : '<span class="muted">-</span>'}</td>
+  <td class="n out">${rp(x.total + x.santTotal)}</td>
+  <td class="n">${x.miss.length ? `<button class="ghost sm" data-act="payIuran" data-id="${esc(x.a.ID)}">Catat bayar</button> ` : ''}${x.sant.filter(s => bisaBayar(s.k)).map(s => `<button class="ghost sm" data-act="lunas" data-id="${esc(s.t.ID)}">Bayar santunan${x.sant.length > 1 ? ' ' + esc(s.k.Almarhum) : ''}</button> `).join('')}${w ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(w)}">WhatsApp</a>` : ''}</td></tr>`; }).join('')}</tbody></table></div>` : '<div class="empty">Semua iuran dan santunan sudah lunas 🎉</div>'}</div>
   <div class="card"><h3>Riwayat pembayaran</h3>
   <div class="row" style="margin:12px 0"><input class="grow" data-f="iq" placeholder="Cari nama anggota" value="${esc(S.f.iq)}"><input type="month" data-f="iuranM" value="${esc(m)}" style="width:auto" title="Filter periode"></div>
   ${rows.length ? `<div class="tw"><table><thead><tr><th>Periode</th><th>Anggota</th><th>Dibayar</th><th>Metode</th><th class="n">Jumlah</th><th></th></tr></thead><tbody>
@@ -467,6 +493,7 @@ function formBayar(preId) {
   const cur = preId || aktif[0].ID;
   openForm('Catat pembayaran iuran', `
     <label>Anggota</label><select name="AnggotaID">${aktif.map(a => opt(a.ID, cur, a.Nama)).join('')}</select>
+    <p class="ferr" id="santNote" style="color:var(--warn);background:rgba(181,71,8,.12)">${santNote(cur)}</p>
     <div class="two"><div><label>Dari bulan</label><input name="dari" type="month" value="${firstUnpaid(cur)}" required></div>
     <div><label>Sampai bulan</label><input name="sampai" type="month" value="${thisMonth()}" required></div></div>
     <p class="muted" style="margin:6px 0 0">Bulan yang sudah lunas otomatis dilewati. Maksimal 60 bulan sekali input.</p>
@@ -482,7 +509,7 @@ function formBayar(preId) {
       if (periodes.length > 60) throw new Error('Maksimal 60 bulan sekali input. Persempit rentang bulan, lalu ulangi untuk sisanya.');
       await mutate('saveIuranBatch', { row: { AnggotaID: v.AnggotaID, Periodes: periodes, Jumlah: v.Jumlah, TanggalBayar: v.TanggalBayar, Metode: v.Metode, Catatan: v.Catatan } }, periodes.length + ' bulan tercatat');
     },
-    f => f.elements.AnggotaID.addEventListener('change', e => { f.elements.dari.value = firstUnpaid(e.target.value); }));
+    f => f.elements.AnggotaID.addEventListener('change', e => { f.elements.dari.value = firstUnpaid(e.target.value); $('#santNote', f).innerHTML = santNote(e.target.value); }));
 }
 
 function formIuran(id) {
