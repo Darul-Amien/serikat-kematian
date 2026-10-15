@@ -117,7 +117,7 @@ const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', '
 const fmtPeriode = p => { const [y, m] = String(p).split('-'); return BULAN[+m - 1] + ' ' + y; };
 const fmtTgl = t => { if (!t) return '-'; const [y, m, d] = t.split('-'); return +d + ' ' + BULAN[+m - 1].slice(0, 3) + ' ' + y; };
 
-S.f = { aq: '', ast: '', iq: '', iuranM: '', kasM: thisMonth(), rMode: 'bulan', rMonth: thisMonth(), rYear: today().slice(0, 4) };
+S.f = { sq: '', aq: '', ast: '', iq: '', iuranM: '', kasM: thisMonth(), rMode: 'bulan', rMonth: thisMonth(), rYear: today().slice(0, 4) };
 
 function monthRange(from, to) {
   const out = []; let [y, m] = from.split('-').map(Number); const [ty, tm] = to.split('-').map(Number);
@@ -182,6 +182,7 @@ const nama = id => { const a = S.data.anggota.find(x => x.ID === id); return a ?
 const saldoKas = () => S.data.kas.reduce((s, k) => s + (k.Jenis === 'Masuk' ? k.Jumlah : -k.Jumlah), 0);
 const cmpTgl = (a, b) => (b.Tanggal || '').localeCompare(a.Tanggal || '');
 const KM = () => S.data.kematian || [], TG = () => S.data.tagihan || [];
+const almLine = id => { const l = KM().filter(k => k.AnggotaID === id); return l.length ? '<div class="muted">Almarhum: ' + l.map(k => esc(k.Almarhum) + ' (' + esc(fmtTgl(k.Tanggal)) + ')').join(', ') + '</div>' : ''; };
 const jiwaAktif = () => S.data.anggota.filter(a => a.Status === 'Aktif').reduce((s, a) => s + (+a.Tanggungan || 0), 0);
 const sumK = k => {
   const tg = TG().filter(t => t.KematianID === k.ID), paid = tg.filter(t => t.TanggalBayar);
@@ -236,6 +237,7 @@ function vDash() {
     <div class="stat"><small>Jiwa aktif</small><b>${jiwaAktif()}</b></div>
     <div class="stat"><small>Iuran ${esc(fmtPeriode(thisMonth()))}</small><b>${rp(terkumpul)}</b><small>target ${rp(target)}</small></div>
     <div class="stat"><small>Anggota menunggak</small><b>${tg.length}</b></div>
+    <div class="stat"><small>Santunan belum lunas</small><b>${TG().filter(t => !t.TanggalBayar).length}</b><small>tagihan</small></div>
   </div>
   <div class="card"><div class="row between"><h3>Transaksi terakhir</h3><button class="ghost sm" data-tab="kas">Lihat kas</button></div>
   ${last.length ? `<div class="tw"><table><tbody>${last.map(k => `<tr><td>${esc(fmtTgl(k.Tanggal))}</td><td>${esc(k.Keterangan || k.Kategori)}</td><td class="n ${k.Jenis === 'Masuk' ? 'in' : 'out'}">${k.Jenis === 'Masuk' ? '+' : '−'}${rp(k.Jumlah)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada transaksi.</div>'}</div>
@@ -252,7 +254,7 @@ function vAnggota() {
     <div class="row" style="margin:12px 0"><input class="grow" data-f="aq" placeholder="Cari nama / alamat / telepon" value="${esc(S.f.aq)}">
     <select data-f="ast" style="width:auto"><option value="">Semua status</option>${['Aktif', 'Nonaktif', 'Meninggal'].map(s => `<option ${st === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
     ${rows.length ? `<div class="tw"><table><thead><tr><th>Nama</th><th>Telepon</th><th>Masuk</th><th class="n">Jiwa</th><th>Status</th><th></th></tr></thead><tbody>
-    ${rows.map(a => `<tr><td><b>${esc(a.Nama)}</b><div class="muted">${esc(a.Alamat)}</div></td><td>${esc(a.Telepon)}</td><td>${esc(fmtTgl(a.TanggalMasuk))}</td><td class="n">${esc(a.Tanggungan)}</td><td>${statusBadge(a.Status)}</td>
+    ${rows.map(a => `<tr><td><b>${esc(a.Nama)}</b><div class="muted">${esc(a.Alamat)}</div>${almLine(a.ID)}</td><td>${esc(a.Telepon)}</td><td>${esc(fmtTgl(a.TanggalMasuk))}</td><td class="n">${esc(a.Tanggungan)}</td><td>${statusBadge(a.Status)}</td>
     <td class="n"><button class="ghost sm" data-act="editAnggota" data-id="${esc(a.ID)}">Ubah</button> <button class="danger sm" data-act="delAnggota" data-id="${esc(a.ID)}">Hapus</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada anggota yang cocok.</div>'}</div>`;
 }
 
@@ -265,6 +267,7 @@ function vIuran() {
   ${tg.length ? `<div class="tw"><table><thead><tr><th>Anggota</th><th>Belum bayar</th><th class="n">Total</th><th></th></tr></thead><tbody>
   ${tg.map(x => { const w = waLink(x.a, x.miss); return `<tr><td>${esc(x.a.Nama)}</td><td>${x.miss.length} bulan<div class="muted">${esc(fmtPeriode(x.miss[0]))}${x.miss.length > 1 ? ' – ' + esc(fmtPeriode(x.miss[x.miss.length - 1])) : ''}</div></td><td class="n out">${rp(x.total)}</td>
   <td class="n"><button class="ghost sm" data-act="payIuran" data-id="${esc(x.a.ID)}">Catat bayar</button> ${w ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(w)}">WhatsApp</a>` : ''}</td></tr>`; }).join('')}</tbody></table></div>` : '<div class="empty">Semua anggota aktif sudah lunas 🎉</div>'}</div>
+  ${tgSantunanCard()}
   <div class="card"><h3>Riwayat pembayaran</h3>
   <div class="row" style="margin:12px 0"><input class="grow" data-f="iq" placeholder="Cari nama anggota" value="${esc(S.f.iq)}"><input type="month" data-f="iuranM" value="${esc(m)}" style="width:auto" title="Filter periode"></div>
   ${rows.length ? `<div class="tw"><table><thead><tr><th>Periode</th><th>Anggota</th><th>Dibayar</th><th>Metode</th><th class="n">Jumlah</th><th></th></tr></thead><tbody>
@@ -328,6 +331,16 @@ function vSet() {
   <div class="card"><h3>Catatan</h3><p class="muted">Password pengurus diubah lewat Apps Script: Project Settings → Script properties → <code>ADMIN_PASSWORD</code>. Data tersimpan di Google Sheet milikmu; buat salinan (File → Make a copy) secara berkala sebagai cadangan.</p></div>`;
 }
 
+function tgSantunanCard() {
+  const L = TG().filter(t => !t.TanggalBayar).map(t => ({ t, k: KM().find(x => x.ID === t.KematianID), a: S.data.anggota.find(x => x.ID === t.AnggotaID) }))
+    .filter(x => x.k && x.a).sort((p, q) => p.a.Nama.localeCompare(q.a.Nama));
+  const total = L.reduce((s, x) => s + x.t.Jumlah, 0);
+  return `<div class="card"><h3>Santunan belum dibayar (${L.length} tagihan · ${rp(total)})</h3>
+  ${L.length ? `<div class="tw" style="margin-top:8px"><table><thead><tr><th>KK</th><th>Santunan untuk</th><th class="n">Tagihan</th><th></th></tr></thead><tbody>
+  ${L.map(x => { const w = waSantunan(x.a, x.t, x.k); return `<tr><td>${esc(x.a.Nama)}</td><td>${esc(x.k.Almarhum)}<div class="muted">${esc(fmtTgl(x.k.Tanggal))}${x.k.Status === 'Dicairkan' ? ' · sudah dicairkan' : ''}</div></td><td class="n out">${rp(x.t.Jumlah)}</td>
+  <td class="n"><button class="ghost sm" data-act="openSantunan" data-id="${esc(x.k.ID)}">Buka</button> ${w ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(w)}">WhatsApp</a>` : ''}</td></tr>`; }).join('')}</tbody></table></div>` : '<div class="empty">Semua santunan sudah lunas 🎉</div>'}</div>`;
+}
+
 function waSantunan(a, t, k) {
   let p = String(a.Telepon || '').replace(/\D/g, ''); if (!p) return '';
   if (p.startsWith('0')) p = '62' + p.slice(1);
@@ -338,9 +351,11 @@ function vSantunan() {
   const k0 = S.sid && KM().find(x => x.ID === S.sid);
   if (k0) return vSantunanDetail(k0);
   S.sid = '';
-  const set = S.data.pengaturan, rows = [...KM()].sort(cmpTgl);
-  return `<div class="card"><div class="row between"><h3>Santunan kematian (${rows.length})</h3><button class="primary sm" data-act="addKematian">+ Catat kematian</button></div>
+  const set = S.data.pengaturan, q = S.f.sq.toLowerCase();
+  const rows = [...KM()].sort(cmpTgl).filter(k => !q || (k.Almarhum + ' ' + nama(k.AnggotaID)).toLowerCase().includes(q));
+  return `<div class="card"><div class="row between"><h3>Santunan kematian (${rows.length})</h3><div class="row"><button class="ghost sm" data-act="exportKematian">Ekspor CSV</button><button class="primary sm" data-act="addKematian">+ Catat kematian</button></div></div>
   <p class="muted" style="margin:6px 0 12px">Tarif ${rp(+set.SantunanKematian)} per jiwa, ditagih ke semua KK aktif setiap ada yang meninggal. ${esc(set.PersenSantunan)}% dari yang terkumpul diserahkan ke keluarga, sisanya masuk kas.</p>
+  <div class="row" style="margin:0 0 12px"><input class="grow" data-f="sq" placeholder="Cari nama almarhum / KK" value="${esc(S.f.sq)}"></div>
   ${rows.length ? `<div class="tw"><table><thead><tr><th>Tanggal</th><th>Almarhum</th><th>Terkumpul</th><th>Status</th><th></th></tr></thead><tbody>
   ${rows.map(k => { const m = sumK(k); return `<tr><td>${esc(fmtTgl(k.Tanggal))}</td><td><b>${esc(k.Almarhum)}</b><div class="muted">KK ${esc(nama(k.AnggotaID))}</div></td><td>${rp(m.terkumpul)} <span class="muted">/ ${rp(m.target)} · ${m.nPaid}/${m.n} KK</span></td><td>${k.Status === 'Dicairkan' ? '<span class="badge">Dicairkan</span>' : '<span class="badge off">Berjalan</span>'}</td><td class="n"><button class="ghost sm" data-act="openSantunan" data-id="${esc(k.ID)}">Kelola</button></td></tr>`; }).join('')}</tbody></table></div>` : '<div class="empty">Belum ada kejadian kematian.</div>'}</div>`;
 }
@@ -499,7 +514,9 @@ document.addEventListener('click', ev => {
     case 'addKas': formKas(null, t.dataset.jenis); break;
     case 'editKas': formKas(id); break;
     case 'delKas': if (confirm('Hapus transaksi kas ini?')) run(() => mutate('deleteKas', { id }, 'Transaksi dihapus')); break;
-    case 'openSantunan': S.sid = id; render(); window.scrollTo(0, 0); break;
+    case 'exportKematian':
+      downloadCsv('riwayat-kematian.csv', [['Tanggal', 'Almarhum', 'KK', 'Catatan', 'Status', 'TanggalCair', 'Santunan', 'BagianKas']].concat([...KM()].sort(cmpTgl).map(k => [k.Tanggal, k.Almarhum, nama(k.AnggotaID), k.Catatan, k.Status, k.TanggalCair, k.Santunan, k.BagianKas]))); break;
+    case 'openSantunan': S.tab = 'santunan'; S.sid = id; render(); window.scrollTo(0, 0); break;
     case 'backSantunan': S.sid = ''; render(); break;
     case 'addKematian': formKematian(); break;
     case 'lunas': formLunas(id); break;
