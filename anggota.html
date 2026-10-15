@@ -143,7 +143,7 @@ $('#lupa').onclick = () => {
   const w = waNum(S.info.waAdmin);
   if (!w) return toast('Nomor admin belum diatur. Hubungi pengurus secara langsung.', true);
   const ni = $('#ni').value.trim();
-  const msg = 'Halo Admin ' + S.info.namaSerikat + ', saya lupa PIN akun anggota' + (ni ? ' (No. induk: ' + ni + ')' : '') + '. Mohon bantu reset PIN saya. Terima kasih.';
+  const msg = 'Assalamu'alaikum ustadz admin ' + S.info.namaSerikat + ', ulun lupa PIN akun anggota' + (ni ? ' (No. induk: ' + ni + ')' : '') + '. Mohon bantu reset PIN ulun. Terima kasih.';
   window.open('https://wa.me/' + w + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
 };
 
