@@ -116,7 +116,7 @@ tbody tr:hover td{background:var(--pri-soft)}
 
 <section id="login" hidden>
   <form class="card" id="loginForm">
-    <img src="logo masjid" alt="Logo Masjid" class="logo-img">
+    <img src="logo-masjid.png" alt="Logo Masjid" class="logo-img" onerror="this.style.display='none'">
     <h2>Masuk Pengurus</h2>
     <p class="muted" style="margin:4px 0 0">Administrasi serikat kematian</p>
     <label for="pw">Password</label>
@@ -253,6 +253,10 @@ const talangan = k => { const m = sumK(k); return Math.min(Math.max(0, santunanO
 const ditanggung = k => Math.max(0, santunanOf(k) - sumK(k).terkumpul) - talangan(k);
 // Santunan lama (dicairkan berdasarkan yang terkumpul) tetap terkunci; yang baru (Mode = Target) boleh dibayar susulan.
 const bisaBayar = k => k.Status !== 'Dicairkan' || k.Mode === 'Target';
+// Pencairan boleh dibatalkan hanya bila belum ada tagihan dihapuskan dan belum ada pelunasan susulan.
+const bisaBatalCair = k => k.Status === 'Dicairkan' && k.Mode === 'Target'
+  && !TG().some(t => t.KematianID === k.ID && t.Dihapuskan)
+  && !S.data.kas.some(c => TG().some(t => t.KematianID === k.ID && c.Referensi === 'T:' + t.ID));
 
 function paidSet(id) { return new Set(S.data.iuran.filter(i => i.AnggotaID === id).map(i => i.Periode)); }
 
@@ -421,7 +425,8 @@ function vSet() {
   <p class="muted" style="margin:4px 0 0">Dihitung dari total tagihan. Sisanya menjadi bagian kas serikat setelah semua tagihan lunas.</p>
   <label>Nomor WhatsApp admin (tujuan tombol "Lupa PIN" anggota)</label><input name="WhatsAppAdmin" value="${esc(s.WhatsAppAdmin)}" inputmode="tel" maxlength="20" placeholder="08xxxxxxxxxx">
   <div class="row end"><button class="primary" type="submit">Simpan pengaturan</button></div></form></div>
-  <div class="card"><h3>Catatan</h3><p class="muted">Password pengurus diubah lewat Apps Script: Project Settings → Script properties → <code>ADMIN_PASSWORD</code>. Data tersimpan di Google Sheet milikmu; buat salinan (File → Make a copy) secara berkala sebagai cadangan.</p></div>`;
+  <div class="card"><h3>Log aktivitas</h3><p class="muted">Riwayat perubahan data (kapan dan apa), termasuk data yang dihapus.</p><button class="ghost sm" data-act="lihatLog">Lihat 300 aktivitas terakhir</button></div>
+  <div class="card"><h3>Catatan</h3><p class="muted">Password pengurus diubah lewat Apps Script: Project Settings → Script properties → <code>ADMIN_PASSWORD</code>. Data tersimpan di Google Sheet milikmu; backup otomatis harian tersimpan di folder Drive "Backup ..." (aktifkan dengan menjalankan pasangBackup() sekali di Apps Script).</p></div>`;
 }
 
 function tgSantunanCard() {
@@ -468,7 +473,7 @@ function vSantunanDetail(k) {
     ${dt ? `<div class="stat"><small>Ditanggung kas (dihapuskan)</small><b class="out">${rp(dt)}</b><small>tidak akan pulih</small></div>` : ''}
   </div>
   <div class="card"><div class="row between"><div><h3>${esc(k.Almarhum)}</h3><div class="muted">KK ${esc(nama(k.AnggotaID))} · ${esc(fmtTgl(k.Tanggal))} · ${rp(k.TarifPerJiwa)} per jiwa</div></div>
-    <div class="row">${done ? `<span class="badge">Dicairkan ${esc(fmtTgl(k.TanggalCair))}</span>` : `<button class="primary sm" data-act="cairkan" data-id="${esc(k.ID)}">Cairkan santunan</button><button class="danger sm" data-act="delKematian" data-id="${esc(k.ID)}">Hapus</button>`}</div></div>
+    <div class="row">${done ? `<span class="badge">Dicairkan ${esc(fmtTgl(k.TanggalCair))}</span>${bisaBatalCair(k) ? `<button class="ghost sm" data-act="batalCairkan" data-id="${esc(k.ID)}">Batalkan pencairan</button>` : ''}` : `<button class="primary sm" data-act="cairkan" data-id="${esc(k.ID)}">Cairkan santunan</button><button class="danger sm" data-act="delKematian" data-id="${esc(k.ID)}">Hapus</button>`}</div></div>
   ${done && !bisaBayar(k) ? '<p class="muted" style="margin:8px 0 0">Dicairkan dengan metode lama (berdasarkan yang terkumpul), tagihan tidak dapat diubah.</p>' : ''}
   <div class="tw" style="margin-top:12px"><table><thead><tr><th>KK</th><th class="n">Jiwa</th><th class="n">Tagihan</th><th>Status</th><th></th></tr></thead><tbody>
   ${list.map(t => { const a = S.data.anggota.find(x => x.ID === t.AnggotaID), w = a && !t.TanggalBayar && !t.Dihapuskan ? waSantunan(a, t, k) : '';
@@ -531,14 +536,7 @@ function formTerima(id) {
       const n = x.miss.length ? Math.min(x.miss.length, Math.max(0, Math.floor(+v.n || 0))) : 0;
       const ids = sant.filter(s => v['s_' + s.t.ID]).map(s => s.t.ID);
       if (!n && !ids.length) throw new Error('Belum ada yang dipilih untuk dibayar.');
-      let j;
-      try {
-        if (n) j = await api('saveIuranBatch', { row: { AnggotaID: id, Periodes: x.miss.slice(0, n), Jumlah: iur, TanggalBayar: v.TanggalBayar, Metode: v.Metode, Catatan: '' } });
-        for (const tid of ids) j = await api('bayarTagihan', { row: { ID: tid, TanggalBayar: v.TanggalBayar, Metode: v.Metode } });
-      } catch (e) {
-        try { const g = await api('getAll'); S.data = g.data; render(); } catch (_) {}
-        throw e;
-      }
+      const j = await api('terimaBayar', { row: { AnggotaID: id, Periodes: x.miss.slice(0, n), Jumlah: iur, TagihanIDs: ids, TanggalBayar: v.TanggalBayar, Metode: v.Metode, Catatan: '' } });
       S.data = j.data; render(); toast('Pembayaran ' + x.a.Nama + ' tercatat');
     },
     f => {
@@ -594,7 +592,7 @@ function formAnggota(id) {
     <div class="two"><div><label>Telepon / WhatsApp</label><input name="Telepon" value="${esc(a.Telepon)}" inputmode="tel" maxlength="30"></div>
     <div><label>Tanggal masuk</label><input name="TanggalMasuk" type="date" value="${esc(a.TanggalMasuk)}" required></div></div>
     <div class="two"><div><label>Status</label><select name="Status">${['Aktif', 'Nonaktif', 'Meninggal'].map(s => opt(s, a.Status)).join('')}</select></div>
-    <div><label>Jumlah jiwa dalam KK</label><input name="Tanggungan" type="number" min="1" value="${esc(a.Tanggungan)}" title="Termasuk kepala keluarga"></div></div>
+    <div><label>Jumlah jiwa dalam KK</label><input name="Tanggungan" type="number" min="0" value="${esc(a.Tanggungan)}" title="Termasuk kepala keluarga. Minimal 1 untuk anggota Aktif"></div></div>
     <label>Catatan</label><textarea name="Catatan" rows="2" maxlength="500">${esc(a.Catatan)}</textarea>`,
     v => mutate('saveAnggota', { row: Object.assign({ ID: id || '' }, v) }));
 }
@@ -690,12 +688,24 @@ document.addEventListener('click', ev => {
         if (tal > saldoKas()) msg += '\n⚠ SALDO KAS TIDAK CUKUP untuk menalangi.';
         msg += '\nTagihan yang belum lunas tetap bisa dicatat setelah ini dan akan memulihkan kas.';
       }
-      if (confirm(msg)) run(() => mutate('cairkanSantunan', { id }, 'Santunan dicairkan'));
+      const kurang = tal > saldoKas();
+      if (kurang) msg += '\nLanjutkan walau kas menjadi minus?';
+      if (confirm(msg)) run(() => mutate('cairkanSantunan', { id, paksa: kurang }, 'Santunan dicairkan'));
       break;
     }
+    case 'batalCairkan': if (confirm('Batalkan pencairan santunan ini?\nCatatan kas otomatis (talangan / bagian kas) akan dihapus dan status kembali "Berjalan". Gunakan hanya untuk mengoreksi salah klik.')) run(() => mutate('batalCairkan', { id }, 'Pencairan dibatalkan')); break;
     case 'delKematian': if (confirm('Batalkan pencatatan kematian ini? Jumlah jiwa KK dikembalikan dan semua tagihan dihapus.')) { run(() => mutate('deleteKematian', { id }, 'Pencatatan dibatalkan').then(() => { S.sid = ''; render(); })); } break;
     case 'kasSemua': S.f.kasM = ''; render(); break;
     case 'print': window.print(); break;
+    case 'lihatLog': run(async () => {
+      const j = await api('getLog'), d = $('#dlg');
+      d.style.width = 'min(900px,96vw)';
+      d.addEventListener('close', () => { d.style.width = ''; }, { once: true });
+      d.innerHTML = '<h3>Log aktivitas</h3><div class="tw" style="margin-top:8px"><table><thead><tr><th>Waktu</th><th>Aksi</th><th>Ringkasan</th></tr></thead><tbody>' +
+        (j.data.length ? j.data.map(l => '<tr><td style="white-space:nowrap">' + esc(l.Waktu) + '</td><td>' + esc(l.Aksi) + '</td><td class="muted" style="word-break:break-word">' + esc(l.Ringkasan) + '</td></tr>').join('') : '<tr><td colspan="3" class="empty">Belum ada aktivitas.</td></tr>') +
+        '</tbody></table></div><div class="row end"><button class="ghost" data-act="closeDlg">Tutup</button></div>';
+      d.showModal();
+    }); break;
     case 'exportAnggota':
       downloadCsv('anggota.csv', [['Nama', 'NoInduk', 'Alamat', 'Telepon', 'TanggalMasuk', 'Status', 'Tanggungan', 'Catatan']].concat(S.data.anggota.map(a => [a.Nama, a.NoInduk, a.Alamat, a.Telepon, a.TanggalMasuk, a.Status, a.Tanggungan, a.Catatan]))); break;
     case 'exportKas':
