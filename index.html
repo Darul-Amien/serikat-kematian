@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Administrasi Serikat Kematian</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--text:#1b2430;--muted:#66717f;--line:#e2e6ea;--pri:#1f6f5c;--pri-soft:#e3f2ee;--onpri:#fff;--danger:#b42318;--ok:#067647;--warn:#b54708}
+@media (prefers-color-scheme:dark){:root{--bg:#12171c;--card:#1b222a;--text:#e8edf2;--muted:#9aa6b2;--line:#2c3640;--pri:#3fb89b;--pri-soft:#173029;--onpri:#08201a;--danger:#f97066;--ok:#47cd89;--warn:#fdb022}}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+h1,h2,h3{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+header{background:var(--card);border-bottom:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:5}
+header h1{font-size:18px}
+nav{display:flex;gap:6px;padding:10px 16px;overflow-x:auto;background:var(--card);border-bottom:1px solid var(--line)}
+nav button{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 14px;cursor:pointer;white-space:nowrap}
+nav button.on{background:var(--pri);color:var(--onpri);border-color:var(--pri)}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.stat small{color:var(--muted)}
+.stat b{display:block;font-size:22px;margin-top:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row.end{justify-content:flex-end;margin-top:14px}
+.row.between{justify-content:space-between}
+.grow{flex:1;min-width:140px}
+button.primary,button.ghost,button.danger,a.btn{border-radius:8px;padding:7px 14px;cursor:pointer;border:1px solid var(--pri);text-decoration:none;display:inline-block;font-size:14px}
+button.primary{background:var(--pri);color:var(--onpri)}
+button.ghost,a.btn{background:transparent;color:var(--pri)}
+button.danger{background:transparent;color:var(--danger);border-color:var(--danger)}
+button.sm,a.btn.sm{padding:3px 10px;font-size:13px}
+button:disabled{opacity:.6;cursor:wait}
+input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+label{display:block;font-size:13px;color:var(--muted);margin:10px 0 3px}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);white-space:nowrap}
+td.n,th.n{text-align:right;white-space:nowrap}
+tfoot td{font-weight:600}
+.badge{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;background:var(--pri-soft);color:var(--pri)}
+.badge.off{background:var(--line);color:var(--muted)}
+.badge.bad{background:rgba(180,35,24,.12);color:var(--danger)}
+.in{color:var(--ok)}.out{color:var(--danger)}
+.muted{color:var(--muted)}
+.empty{padding:18px;text-align:center;color:var(--muted)}
+dialog{border:1px solid var(--line);border-radius:14px;padding:18px;width:min(520px,94vw);background:var(--card);color:var(--text)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog h3{margin-bottom:4px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#login{min-height:100vh;display:grid;place-items:center;padding:16px}
+#login .card{width:min(380px,100%)}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:9px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:20}
+#toast.show{opacity:1}#toast.err{background:var(--danger);color:#fff}
+#bar{position:fixed;top:0;left:0;height:3px;width:100%;background:var(--pri);z-index:30;display:none;animation:pulse 1s infinite}
+@keyframes pulse{50%{opacity:.35}}
+.rpt h2{margin-bottom:2px}
+@media (max-width:560px){.two{grid-template-columns:1fr}}
+@media print{header,nav,.noprint,#toast{display:none!important}body{background:#fff;color:#000}.card{border:none;padding:0}main{padding:0}}
+</style>
+</head>
+<body>
+<div id="bar"></div>
+
+<section id="login" hidden>
+  <form class="card" id="loginForm">
+    <h2>Masuk Pengurus</h2>
+    <p class="muted" style="margin:4px 0 0">Administrasi serikat kematian</p>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" autocomplete="current-password" required>
+    <div class="row end"><button class="primary" type="submit">Masuk</button></div>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <header>
+    <h1 id="brand">Serikat Kematian</h1>
+    <button class="ghost sm" data-act="logout">Keluar</button>
+  </header>
+  <nav id="nav">
+    <button data-tab="dashboard">Dashboard</button>
+    <button data-tab="anggota">Anggota</button>
+    <button data-tab="iuran">Iuran</button>
+    <button data-tab="kas">Kas</button>
+    <button data-tab="laporan">Laporan</button>
+    <button data-tab="pengaturan">Pengaturan</button>
+  </nav>
+  <main id="view"></main>
+</div>
+
+<dialog id="dlg"></dialog>
+<div id="toast" role="status"></div>
+
+<script>
+/* ============ KONFIGURASI ============ */
+// Ganti dengan URL Web App hasil Deploy di Apps Script (berakhiran /exec)
+const API_URL = 'https://script.google.com/macros/s/AKfycbwbtIzhauLLo_XhctBvnMcBlpPK2Q7G7fSuqOzF-fwZu2OhxeiAbifXKaQDBXXACte1/exec';
+
+/* ============ STATE & HELPER ============ */
+const S = { token: null, data: null, tab: 'dashboard', f: {} };
+try { S.token = sessionStorage.getItem('tok'); } catch (e) {}
+
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rp = n => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0);
+const pad = n => String(n).padStart(2, '0');
+const today = () => { const d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+const thisMonth = () => today().slice(0, 7);
+const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const fmtPeriode = p => { const [y, m] = String(p).split('-'); return BULAN[+m - 1] + ' ' + y; };
+const fmtTgl = t => { if (!t) return '-'; const [y, m, d] = t.split('-'); return +d + ' ' + BULAN[+m - 1].slice(0, 3) + ' ' + y; };
+
+S.f = { aq: '', ast: '', iq: '', iuranM: '', kasM: thisMonth(), rMode: 'bulan', rMonth: thisMonth(), rYear: today().slice(0, 4) };
+
+function monthRange(from, to) {
+  const out = []; let [y, m] = from.split('-').map(Number); const [ty, tm] = to.split('-').map(Number);
+  while ((y < ty || (y === ty && m <= tm)) && out.length < 600) { out.push(y + '-' + pad(m)); m++; if (m > 12) { m = 1; y++; } }
+  return out;
+}
+
+function toast(msg, err) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'show' + (err ? ' err' : '');
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.className = '', err ? 4500 : 2200);
+}
+const bar = on => { $('#bar').style.display = on ? 'block' : 'none'; };
+
+async function api(action, payload) {
+  if (API_URL.startsWith('GANTI')) throw new Error('API_URL belum diisi di index.html');
+  const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(Object.assign({ action, token: S.token }, payload || {})) });
+  let j; try { j = await res.json(); } catch (e) { throw new Error('Respons server tidak valid. Periksa deployment Apps Script.'); }
+  if (!j.ok) { if (j.code === 'AUTH') logout(); throw new Error(j.error || 'Terjadi kesalahan'); }
+  return j;
+}
+async function run(fn) { bar(true); try { await fn(); } catch (e) { toast(e.message, true); } finally { bar(false); } }
+async function mutate(action, payload, msg) { const j = await api(action, payload); S.data = j.data; render(); toast(msg || 'Tersimpan'); }
+
+/* ============ LOGIN ============ */
+function showLogin() { $('#app').hidden = true; $('#login').hidden = false; $('#pw').value = ''; setTimeout(() => $('#pw').focus(), 50); }
+function logout() { S.token = null; S.data = null; try { sessionStorage.removeItem('tok'); } catch (e) {} showLogin(); }
+$('#loginForm').addEventListener('submit', ev => {
+  ev.preventDefault();
+  run(async () => {
+    const j = await api('login', { password: $('#pw').value });
+    S.token = j.token; try { sessionStorage.setItem('tok', j.token); } catch (e) {}
+    await boot();
+  });
+});
+async function boot() {
+  const j = await api('getAll'); S.data = j.data;
+  $('#login').hidden = true; $('#app').hidden = false; render();
+}
+
+/* ============ PERHITUNGAN ============ */
+const iurBulanan = () => +S.data.pengaturan.IuranBulanan || 0;
+const nama = id => { const a = S.data.anggota.find(x => x.ID === id); return a ? a.Nama : '(dihapus)'; };
+const saldoKas = () => S.data.kas.reduce((s, k) => s + (k.Jenis === 'Masuk' ? k.Jumlah : -k.Jumlah), 0);
+const cmpTgl = (a, b) => (b.Tanggal || '').localeCompare(a.Tanggal || '');
+
+function paidSet(id) { return new Set(S.data.iuran.filter(i => i.AnggotaID === id).map(i => i.Periode)); }
+
+function tunggakan() {
+  const nowM = thisMonth(), iur = iurBulanan();
+  return S.data.anggota.filter(a => a.Status === 'Aktif').map(a => {
+    const start = (a.TanggalMasuk || today()).slice(0, 7);
+    const paid = paidSet(a.ID);
+    const miss = start <= nowM ? monthRange(start, nowM).filter(p => !paid.has(p)) : [];
+    return { a, miss, total: miss.length * iur };
+  }).filter(x => x.miss.length);
+}
+
+function waLink(a, miss) {
+  let p = String(a.Telepon || '').replace(/\D/g, ''); if (!p) return '';
+  if (p.startsWith('0')) p = '62' + p.slice(1);
+  const shown = miss.length > 6 ? miss.slice(0, 6).map(fmtPeriode).join(', ') + ' dan ' + (miss.length - 6) + ' bulan lainnya' : miss.map(fmtPeriode).join(', ');
+  const msg = 'Yth. ' + a.Nama + ', kami informasikan iuran ' + S.data.pengaturan.NamaSerikat + ' yang belum tercatat: ' + shown + '. Total ' + rp(miss.length * iurBulanan()) + '. Terima kasih.';
+  return 'https://wa.me/' + p + '?text=' + encodeURIComponent(msg);
+}
+
+/* ============ CSV ============ */
+function csvCell(v) { v = String(v == null ? '' : v); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+function downloadCsv(name, rows) {
+  const blob = new Blob(['\ufeff' + rows.map(r => r.map(csvCell).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+/* ============ TAMPILAN ============ */
+const statusBadge = s => '<span class="badge ' + (s === 'Aktif' ? '' : s === 'Meninggal' ? 'bad' : 'off') + '">' + esc(s) + '</span>';
+
+function vDash() {
+  const d = S.data, aktif = d.anggota.filter(a => a.Status === 'Aktif');
+  const terkumpul = d.iuran.filter(i => i.Periode === thisMonth()).reduce((s, i) => s + i.Jumlah, 0);
+  const target = aktif.length * iurBulanan();
+  const tg = tunggakan().sort((x, y) => y.miss.length - x.miss.length);
+  const last = [...d.kas].sort(cmpTgl).slice(0, 6);
+  return `<div class="grid">
+    <div class="stat"><small>Saldo kas</small><b>${rp(saldoKas())}</b></div>
+    <div class="stat"><small>Anggota aktif</small><b>${aktif.length}</b></div>
+    <div class="stat"><small>Iuran ${esc(fmtPeriode(thisMonth()))}</small><b>${rp(terkumpul)}</b><small>target ${rp(target)}</small></div>
+    <div class="stat"><small>Anggota menunggak</small><b>${tg.length}</b></div>
+  </div>
+  <div class="card"><div class="row between"><h3>Transaksi terakhir</h3><button class="ghost sm" data-tab="kas">Lihat kas</button></div>
+  ${last.length ? `<div class="tw"><table><tbody>${last.map(k => `<tr><td>${esc(fmtTgl(k.Tanggal))}</td><td>${esc(k.Keterangan || k.Kategori)}</td><td class="n ${k.Jenis === 'Masuk' ? 'in' : 'out'}">${k.Jenis === 'Masuk' ? '+' : '−'}${rp(k.Jumlah)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada transaksi.</div>'}</div>
+  <div class="card"><div class="row between"><h3>Tunggakan terbanyak</h3><button class="ghost sm" data-tab="iuran">Kelola iuran</button></div>
+  ${tg.length ? `<div class="tw"><table><tbody>${tg.slice(0, 5).map(x => `<tr><td>${esc(x.a.Nama)}</td><td>${x.miss.length} bulan</td><td class="n out">${rp(x.total)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada tunggakan 🎉</div>'}</div>`;
+}
+
+function vAnggota() {
+  const q = S.f.aq.toLowerCase(), st = S.f.ast;
+  const rows = S.data.anggota.filter(a => (!st || a.Status === st) && (!q || (a.Nama + ' ' + a.Alamat + ' ' + a.Telepon).toLowerCase().includes(q)))
+    .sort((a, b) => a.Nama.localeCompare(b.Nama));
+  return `<div class="card"><div class="row between"><h3>Data anggota (${rows.length})</h3>
+    <div class="row"><button class="ghost sm" data-act="exportAnggota">Ekspor CSV</button><button class="primary sm" data-act="addAnggota">+ Anggota</button></div></div>
+    <div class="row" style="margin:12px 0"><input class="grow" data-f="aq" placeholder="Cari nama / alamat / telepon" value="${esc(S.f.aq)}">
+    <select data-f="ast" style="width:auto"><option value="">Semua status</option>${['Aktif', 'Nonaktif', 'Meninggal'].map(s => `<option ${st === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
+    ${rows.length ? `<div class="tw"><table><thead><tr><th>Nama</th><th>Telepon</th><th>Masuk</th><th class="n">Tanggungan</th><th>Status</th><th></th></tr></thead><tbody>
+    ${rows.map(a => `<tr><td><b>${esc(a.Nama)}</b><div class="muted">${esc(a.Alamat)}</div></td><td>${esc(a.Telepon)}</td><td>${esc(fmtTgl(a.TanggalMasuk))}</td><td class="n">${a.Tanggungan}</td><td>${statusBadge(a.Status)}</td>
+    <td class="n"><button class="ghost sm" data-act="editAnggota" data-id="${esc(a.ID)}">Ubah</button> <button class="danger sm" data-act="delAnggota" data-id="${esc(a.ID)}">Hapus</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada anggota yang cocok.</div>'}</div>`;
+}
+
+function vIuran() {
+  const tg = tunggakan().sort((x, y) => y.miss.length - x.miss.length);
+  const q = S.f.iq.toLowerCase(), m = S.f.iuranM;
+  const rows = S.data.iuran.filter(i => (!m || i.Periode === m) && (!q || nama(i.AnggotaID).toLowerCase().includes(q)))
+    .sort((a, b) => b.Periode.localeCompare(a.Periode) || (b.TanggalBayar || '').localeCompare(a.TanggalBayar || ''));
+  return `<div class="card"><div class="row between"><h3>Tunggakan (${tg.length} anggota)</h3><button class="primary sm" data-act="payIuran">+ Catat pembayaran</button></div>
+  ${tg.length ? `<div class="tw"><table><thead><tr><th>Anggota</th><th>Belum bayar</th><th class="n">Total</th><th></th></tr></thead><tbody>
+  ${tg.map(x => { const w = waLink(x.a, x.miss); return `<tr><td>${esc(x.a.Nama)}</td><td>${x.miss.length} bulan<div class="muted">${esc(fmtPeriode(x.miss[0]))}${x.miss.length > 1 ? ' – ' + esc(fmtPeriode(x.miss[x.miss.length - 1])) : ''}</div></td><td class="n out">${rp(x.total)}</td>
+  <td class="n"><button class="ghost sm" data-act="payIuran" data-id="${esc(x.a.ID)}">Catat bayar</button> ${w ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(w)}">WhatsApp</a>` : ''}</td></tr>`; }).join('')}</tbody></table></div>` : '<div class="empty">Semua anggota aktif sudah lunas 🎉</div>'}</div>
+  <div class="card"><h3>Riwayat pembayaran</h3>
+  <div class="row" style="margin:12px 0"><input class="grow" data-f="iq" placeholder="Cari nama anggota" value="${esc(S.f.iq)}"><input type="month" data-f="iuranM" value="${esc(m)}" style="width:auto" title="Filter periode"></div>
+  ${rows.length ? `<div class="tw"><table><thead><tr><th>Periode</th><th>Anggota</th><th>Dibayar</th><th>Metode</th><th class="n">Jumlah</th><th></th></tr></thead><tbody>
+  ${rows.slice(0, 200).map(i => `<tr><td>${esc(fmtPeriode(i.Periode))}</td><td>${esc(nama(i.AnggotaID))}</td><td>${esc(fmtTgl(i.TanggalBayar))}</td><td>${esc(i.Metode)}</td><td class="n">${rp(i.Jumlah)}</td>
+  <td class="n"><button class="ghost sm" data-act="editIuran" data-id="${esc(i.ID)}">Ubah</button> <button class="danger sm" data-act="delIuran" data-id="${esc(i.ID)}">Hapus</button></td></tr>`).join('')}</tbody></table></div>${rows.length > 200 ? '<p class="muted">Menampilkan 200 data terbaru. Gunakan filter untuk mempersempit.</p>' : ''}` : '<div class="empty">Belum ada data iuran.</div>'}</div>`;
+}
+
+function vKas() {
+  const m = S.f.kasM;
+  const rows = S.data.kas.filter(k => !m || (k.Tanggal || '').slice(0, 7) === m).sort(cmpTgl);
+  const masuk = rows.filter(k => k.Jenis === 'Masuk').reduce((s, k) => s + k.Jumlah, 0);
+  const keluar = rows.filter(k => k.Jenis === 'Keluar').reduce((s, k) => s + k.Jumlah, 0);
+  return `<div class="grid"><div class="stat"><small>Saldo kas saat ini</small><b>${rp(saldoKas())}</b></div>
+  <div class="stat"><small>Masuk (${m ? esc(fmtPeriode(m)) : 'semua'})</small><b class="in">${rp(masuk)}</b></div>
+  <div class="stat"><small>Keluar (${m ? esc(fmtPeriode(m)) : 'semua'})</small><b class="out">${rp(keluar)}</b></div></div>
+  <div class="card"><div class="row between"><h3>Buku kas</h3><div class="row"><button class="ghost sm" data-act="exportKas">Ekspor CSV</button>
+  <button class="primary sm" data-act="addKas" data-jenis="Masuk">+ Kas masuk</button><button class="primary sm" data-act="addKas" data-jenis="Keluar">+ Kas keluar</button></div></div>
+  <div class="row" style="margin:12px 0"><label style="margin:0">Periode</label><input type="month" data-f="kasM" value="${esc(m)}" style="width:auto"><button class="ghost sm" data-act="kasSemua">Semua</button></div>
+  ${rows.length ? `<div class="tw"><table><thead><tr><th>Tanggal</th><th>Kategori</th><th>Keterangan</th><th class="n">Masuk</th><th class="n">Keluar</th><th></th></tr></thead><tbody>
+  ${rows.map(k => `<tr><td>${esc(fmtTgl(k.Tanggal))}</td><td>${esc(k.Kategori)}</td><td>${esc(k.Keterangan)}</td><td class="n in">${k.Jenis === 'Masuk' ? rp(k.Jumlah) : ''}</td><td class="n out">${k.Jenis === 'Keluar' ? rp(k.Jumlah) : ''}</td>
+  <td class="n">${k.Referensi ? '<span class="muted">otomatis</span>' : `<button class="ghost sm" data-act="editKas" data-id="${esc(k.ID)}">Ubah</button> <button class="danger sm" data-act="delKas" data-id="${esc(k.ID)}">Hapus</button>`}</td></tr>`).join('')}</tbody>
+  <tfoot><tr><td colspan="3">Total</td><td class="n in">${rp(masuk)}</td><td class="n out">${rp(keluar)}</td><td></td></tr></tfoot></table></div>` : '<div class="empty">Belum ada transaksi pada periode ini.</div>'}</div>`;
+}
+
+function vLaporan() {
+  const mode = S.f.rMode, val = mode === 'bulan' ? S.f.rMonth : S.f.rYear;
+  const len = mode === 'bulan' ? 7 : 4;
+  const key = k => (k.Tanggal || '').slice(0, len);
+  const awal = S.data.kas.filter(k => val && key(k) < val).reduce((s, k) => s + (k.Jenis === 'Masuk' ? k.Jumlah : -k.Jumlah), 0);
+  const rows = val ? S.data.kas.filter(k => key(k) === val).sort((a, b) => (a.Tanggal || '').localeCompare(b.Tanggal || '')) : [];
+  const masuk = rows.filter(k => k.Jenis === 'Masuk').reduce((s, k) => s + k.Jumlah, 0);
+  const keluar = rows.filter(k => k.Jenis === 'Keluar').reduce((s, k) => s + k.Jumlah, 0);
+  const kat = {}; rows.forEach(k => { const kk = k.Jenis + '|' + k.Kategori; kat[kk] = (kat[kk] || 0) + k.Jumlah; });
+  const label = !val ? '-' : mode === 'bulan' ? fmtPeriode(val) : 'Tahun ' + val;
+  return `<div class="card noprint"><div class="row">
+    <select data-f="rMode" style="width:auto"><option value="bulan" ${mode === 'bulan' ? 'selected' : ''}>Bulanan</option><option value="tahun" ${mode === 'tahun' ? 'selected' : ''}>Tahunan</option></select>
+    ${mode === 'bulan' ? `<input type="month" data-f="rMonth" value="${esc(S.f.rMonth)}" style="width:auto">` : `<input type="number" data-f="rYear" min="2000" max="2100" value="${esc(S.f.rYear)}" style="width:110px">`}
+    <button class="primary sm" data-act="print">Cetak / simpan PDF</button></div></div>
+  <div class="card rpt"><h2>Laporan Keuangan ${esc(S.data.pengaturan.NamaSerikat)}</h2><div class="muted">Periode: ${esc(label)}</div>
+  <div class="tw" style="margin-top:12px"><table><tbody>
+  <tr><td>Saldo awal</td><td class="n">${rp(awal)}</td></tr>
+  <tr><td>Total kas masuk</td><td class="n in">${rp(masuk)}</td></tr>
+  <tr><td>Total kas keluar</td><td class="n out">${rp(keluar)}</td></tr>
+  <tr><td><b>Saldo akhir</b></td><td class="n"><b>${rp(awal + masuk - keluar)}</b></td></tr></tbody></table></div>
+  <h3 style="margin-top:16px">Rincian per kategori</h3>
+  ${Object.keys(kat).length ? `<div class="tw"><table><tbody>${Object.keys(kat).sort().map(kk => { const [j, c] = kk.split('|'); return `<tr><td>${esc(c)}</td><td>${j}</td><td class="n ${j === 'Masuk' ? 'in' : 'out'}">${rp(kat[kk])}</td></tr>`; }).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada transaksi.</div>'}
+  <h3 style="margin-top:16px">Daftar transaksi</h3>
+  ${rows.length ? `<div class="tw"><table><thead><tr><th>Tanggal</th><th>Keterangan</th><th class="n">Masuk</th><th class="n">Keluar</th></tr></thead><tbody>
+  ${rows.map(k => `<tr><td>${esc(fmtTgl(k.Tanggal))}</td><td>${esc(k.Keterangan || k.Kategori)}</td><td class="n">${k.Jenis === 'Masuk' ? rp(k.Jumlah) : ''}</td><td class="n">${k.Jenis === 'Keluar' ? rp(k.Jumlah) : ''}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Tidak ada transaksi.</div>'}</div>`;
+}
+
+function vSet() {
+  const s = S.data.pengaturan;
+  return `<div class="card"><h3>Pengaturan</h3>
+  <form id="setForm"><label>Nama serikat</label><input name="NamaSerikat" value="${esc(s.NamaSerikat)}" required maxlength="100">
+  <div class="two"><div><label>Iuran per bulan (Rp)</label><input name="IuranBulanan" type="number" min="0" step="1000" value="${esc(s.IuranBulanan)}" required></div>
+  <div><label>Santunan kematian (Rp)</label><input name="SantunanKematian" type="number" min="0" step="1000" value="${esc(s.SantunanKematian)}"></div></div>
+  <div class="row end"><button class="primary" type="submit">Simpan pengaturan</button></div></form></div>
+  <div class="card"><h3>Catatan</h3><p class="muted">Password pengurus diubah lewat Apps Script: Project Settings → Script properties → <code>ADMIN_PASSWORD</code>. Data tersimpan di Google Sheet milikmu; buat salinan (File → Make a copy) secara berkala sebagai cadangan.</p></div>`;
+}
+
+const VIEWS = { dashboard: vDash, anggota: vAnggota, iuran: vIuran, kas: vKas, laporan: vLaporan, pengaturan: vSet };
+
+function render() {
+  if (!S.data) return;
+  $('#brand').textContent = S.data.pengaturan.NamaSerikat; document.title = S.data.pengaturan.NamaSerikat;
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === S.tab));
+  $('#view').innerHTML = VIEWS[S.tab]();
+}
+
+/* ============ FORM / DIALOG ============ */
+function openForm(title, html, onSubmit, onReady) {
+  const d = $('#dlg');
+  d.innerHTML = `<form id="frm"><h3>${esc(title)}</h3>${html}<div class="row end"><button type="button" class="ghost" data-act="closeDlg">Batal</button><button class="primary" type="submit">Simpan</button></div></form>`;
+  const f = $('#frm', d);
+  f.addEventListener('submit', ev => {
+    ev.preventDefault(); const btn = $('.primary', f); btn.disabled = true;
+    run(async () => { await onSubmit(Object.fromEntries(new FormData(f))); d.close(); }).finally(() => { btn.disabled = false; });
+  });
+  if (onReady) onReady(f);
+  d.showModal();
+}
+const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label == null ? v : label)}</option>`;
+
+function formAnggota(id) {
+  const a = id ? S.data.anggota.find(x => x.ID === id) : { Nama: '', Alamat: '', Telepon: '', TanggalMasuk: today(), Status: 'Aktif', Tanggungan: 0, Catatan: '' };
+  openForm(id ? 'Ubah anggota' : 'Tambah anggota', `
+    <label>Nama</label><input name="Nama" value="${esc(a.Nama)}" required maxlength="100">
+    <label>Alamat</label><input name="Alamat" value="${esc(a.Alamat)}" maxlength="300">
+    <div class="two"><div><label>Telepon / WhatsApp</label><input name="Telepon" value="${esc(a.Telepon)}" inputmode="tel" maxlength="30"></div>
+    <div><label>Tanggal masuk</label><input name="TanggalMasuk" type="date" value="${esc(a.TanggalMasuk)}" required></div></div>
+    <div class="two"><div><label>Status</label><select name="Status">${['Aktif', 'Nonaktif', 'Meninggal'].map(s => opt(s, a.Status)).join('')}</select></div>
+    <div><label>Jumlah tanggungan</label><input name="Tanggungan" type="number" min="0" value="${esc(a.Tanggungan)}"></div></div>
+    <label>Catatan</label><textarea name="Catatan" rows="2" maxlength="500">${esc(a.Catatan)}</textarea>`,
+    v => mutate('saveAnggota', { row: Object.assign({ ID: id || '' }, v) }));
+}
+
+function formBayar(preId) {
+  const aktif = S.data.anggota.filter(a => a.Status === 'Aktif').sort((a, b) => a.Nama.localeCompare(b.Nama));
+  if (!aktif.length) return toast('Belum ada anggota aktif.', true);
+  const firstUnpaid = id => {
+    const a = S.data.anggota.find(x => x.ID === id); const paid = paidSet(id); const start = (a && a.TanggalMasuk || today()).slice(0, 7);
+    return monthRange(start, thisMonth()).find(p => !paid.has(p)) || thisMonth();
+  };
+  const cur = preId || aktif[0].ID;
+  openForm('Catat pembayaran iuran', `
+    <label>Anggota</label><select name="AnggotaID">${aktif.map(a => opt(a.ID, cur, a.Nama)).join('')}</select>
+    <div class="two"><div><label>Dari bulan</label><input name="dari" type="month" value="${firstUnpaid(cur)}" required></div>
+    <div><label>Sampai bulan</label><input name="sampai" type="month" value="${thisMonth()}" required></div></div>
+    <p class="muted" style="margin:6px 0 0">Bulan yang sudah lunas otomatis dilewati.</p>
+    <div class="two"><div><label>Jumlah per bulan (Rp)</label><input name="Jumlah" type="number" min="1" value="${iurBulanan()}" required></div>
+    <div><label>Tanggal bayar</label><input name="TanggalBayar" type="date" value="${today()}" required></div></div>
+    <div class="two"><div><label>Metode</label><select name="Metode">${['Tunai', 'Transfer'].map(m => opt(m, 'Tunai')).join('')}</select></div>
+    <div><label>Catatan</label><input name="Catatan" maxlength="300"></div></div>`,
+    async v => {
+      if (v.dari > v.sampai) throw new Error('"Dari bulan" tidak boleh setelah "Sampai bulan".');
+      const paid = paidSet(v.AnggotaID);
+      const periodes = monthRange(v.dari, v.sampai).filter(p => !paid.has(p));
+      if (!periodes.length) throw new Error('Semua bulan pada rentang itu sudah lunas.');
+      await mutate('saveIuranBatch', { row: { AnggotaID: v.AnggotaID, Periodes: periodes, Jumlah: v.Jumlah, TanggalBayar: v.TanggalBayar, Metode: v.Metode, Catatan: v.Catatan } }, periodes.length + ' bulan tercatat');
+    },
+    f => f.elements.AnggotaID.addEventListener('change', e => { f.elements.dari.value = firstUnpaid(e.target.value); }));
+}
+
+function formIuran(id) {
+  const i = S.data.iuran.find(x => x.ID === id); if (!i) return;
+  openForm('Ubah iuran · ' + nama(i.AnggotaID) + ' · ' + fmtPeriode(i.Periode), `
+    <div class="two"><div><label>Jumlah (Rp)</label><input name="Jumlah" type="number" min="1" value="${esc(i.Jumlah)}" required></div>
+    <div><label>Tanggal bayar</label><input name="TanggalBayar" type="date" value="${esc(i.TanggalBayar)}" required></div></div>
+    <div class="two"><div><label>Metode</label><select name="Metode">${['Tunai', 'Transfer'].map(m => opt(m, i.Metode)).join('')}</select></div>
+    <div><label>Catatan</label><input name="Catatan" value="${esc(i.Catatan)}" maxlength="300"></div></div>`,
+    v => mutate('saveIuran', { row: { ID: i.ID, AnggotaID: i.AnggotaID, Periode: i.Periode, Jumlah: v.Jumlah, TanggalBayar: v.TanggalBayar, Metode: v.Metode, Catatan: v.Catatan } }));
+}
+
+function formKas(id, jenis) {
+  const k = id ? S.data.kas.find(x => x.ID === id) : { Tanggal: today(), Jenis: jenis, Kategori: '', Keterangan: '', Jumlah: '' };
+  if (!k) return;
+  const saran = k.Jenis === 'Masuk' ? ['Donasi', 'Lainnya'] : ['Santunan Kematian', 'Operasional', 'Konsumsi', 'Lainnya'];
+  openForm((id ? 'Ubah' : 'Tambah') + ' kas ' + k.Jenis.toLowerCase(), `
+    <div class="two"><div><label>Tanggal</label><input name="Tanggal" type="date" value="${esc(k.Tanggal)}" required></div>
+    <div><label>Jumlah (Rp)</label><input name="Jumlah" type="number" min="1" value="${esc(k.Jumlah)}" required></div></div>
+    <label>Kategori</label><input name="Kategori" list="kat" value="${esc(k.Kategori)}" maxlength="50" required><datalist id="kat">${saran.map(s => `<option value="${esc(s)}">`).join('')}</datalist>
+    <label>Keterangan</label><input name="Keterangan" value="${esc(k.Keterangan)}" maxlength="300">`,
+    v => mutate('saveKas', { row: Object.assign({ ID: id || '', Jenis: k.Jenis }, v) }));
+}
+
+/* ============ EVENT ============ */
+document.addEventListener('click', ev => {
+  const t = ev.target.closest('[data-act],[data-tab]'); if (!t) return;
+  if (t.dataset.tab) { S.tab = t.dataset.tab; render(); window.scrollTo(0, 0); return; }
+  const id = t.dataset.id;
+  switch (t.dataset.act) {
+    case 'logout': logout(); break;
+    case 'closeDlg': $('#dlg').close(); break;
+    case 'addAnggota': formAnggota(); break;
+    case 'editAnggota': formAnggota(id); break;
+    case 'delAnggota': if (confirm('Hapus anggota "' + nama(id) + '"?')) run(() => mutate('deleteAnggota', { id }, 'Anggota dihapus')); break;
+    case 'payIuran': formBayar(id); break;
+    case 'editIuran': formIuran(id); break;
+    case 'delIuran': if (confirm('Hapus pembayaran iuran ini? Catatan kas terkait ikut terhapus.')) run(() => mutate('deleteIuran', { id }, 'Iuran dihapus')); break;
+    case 'addKas': formKas(null, t.dataset.jenis); break;
+    case 'editKas': formKas(id); break;
+    case 'delKas': if (confirm('Hapus transaksi kas ini?')) run(() => mutate('deleteKas', { id }, 'Transaksi dihapus')); break;
+    case 'kasSemua': S.f.kasM = ''; render(); break;
+    case 'print': window.print(); break;
+    case 'exportAnggota':
+      downloadCsv('anggota.csv', [['Nama', 'Alamat', 'Telepon', 'TanggalMasuk', 'Status', 'Tanggungan', 'Catatan']].concat(S.data.anggota.map(a => [a.Nama, a.Alamat, a.Telepon, a.TanggalMasuk, a.Status, a.Tanggungan, a.Catatan]))); break;
+    case 'exportKas':
+      downloadCsv('kas.csv', [['Tanggal', 'Jenis', 'Kategori', 'Keterangan', 'Jumlah']].concat([...S.data.kas].sort(cmpTgl).map(k => [k.Tanggal, k.Jenis, k.Kategori, k.Keterangan, k.Jumlah]))); break;
+  }
+});
+
+// Filter / pencarian: render ulang tanpa kehilangan fokus input
+document.addEventListener('input', ev => {
+  const key = ev.target.dataset && ev.target.dataset.f; if (!key) return;
+  S.f[key] = ev.target.value;
+  const pos = ev.target.selectionStart; render();
+  const el = $('[data-f="' + key + '"]');
+  if (el && ev.target.type !== 'month' && ev.target.tagName !== 'SELECT') { el.focus(); try { el.setSelectionRange(pos, pos); } catch (e) {} }
+});
+
+document.addEventListener('submit', ev => {
+  if (ev.target.id !== 'setForm') return;
+  ev.preventDefault();
+  run(() => mutate('savePengaturan', { row: Object.fromEntries(new FormData(ev.target)) }, 'Pengaturan tersimpan'));
+});
+
+/* ============ MULAI ============ */
+if (S.token) run(boot).then(() => { if (!S.data) showLogin(); }); else showLogin();
+</script>
+</body>
+</html>
