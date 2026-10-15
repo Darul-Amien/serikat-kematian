@@ -46,6 +46,8 @@ tfoot td{font-weight:600}
 .in{color:var(--ok)}.out{color:var(--danger)}
 .muted{color:var(--muted)}
 .empty{padding:18px;text-align:center;color:var(--muted)}
+.ferr{margin:10px 0 0;padding:8px 10px;border-radius:8px;background:rgba(180,35,24,.12);color:var(--danger);font-size:14px}
+.ferr:empty{display:none}
 dialog{border:1px solid var(--line);border-radius:14px;padding:18px;width:min(520px,94vw);background:var(--card);color:var(--text)}
 dialog::backdrop{background:rgba(0,0,0,.45)}
 dialog h3{margin-bottom:4px}
@@ -70,7 +72,8 @@ dialog h3{margin-bottom:4px}
     <p class="muted" style="margin:4px 0 0">Administrasi serikat kematian</p>
     <label for="pw">Password</label>
     <input id="pw" type="password" autocomplete="current-password" required>
-    <div class="row end"><button class="primary" type="submit">Masuk</button></div>
+    <p class="ferr" id="lerr" role="alert"></p>
+    <div class="row end"><button class="primary" type="submit" id="loginBtn">Masuk</button></div>
   </form>
 </section>
 
@@ -122,14 +125,24 @@ function monthRange(from, to) {
 
 function toast(msg, err) {
   const t = $('#toast'); t.textContent = msg; t.className = 'show' + (err ? ' err' : '');
-  clearTimeout(toast.t); toast.t = setTimeout(() => t.className = '', err ? 4500 : 2200);
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.className = '', err ? 5000 : 2200);
 }
 const bar = on => { $('#bar').style.display = on ? 'block' : 'none'; };
 
+/* ============ API ============ */
 async function api(action, payload) {
-  if (API_URL.startsWith('GANTI')) throw new Error('API_URL belum diisi di index.html');
-  const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(Object.assign({ action, token: S.token }, payload || {})) });
-  let j; try { j = await res.json(); } catch (e) { throw new Error('Respons server tidak valid. Periksa deployment Apps Script.'); }
+  if (!API_URL || API_URL.startsWith('GANTI')) throw new Error('API_URL belum diisi di index.html');
+  let res;
+  try {
+    // Tanpa header Content-Type -> "simple request", tidak memicu preflight CORS di Apps Script.
+    res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(Object.assign({ action, token: S.token }, payload || {})) });
+  } catch (e) {
+    throw new Error('Tidak bisa terhubung ke server. Periksa koneksi internet, API_URL, dan pastikan deployment Apps Script diset "Who has access: Anyone".');
+  }
+  let j;
+  try { j = await res.json(); } catch (e) {
+    throw new Error('Respons server tidak valid. Periksa deployment Apps Script (akses harus "Anyone") dan pastikan sudah deploy versi terbaru.');
+  }
   if (!j.ok) { if (j.code === 'AUTH') logout(); throw new Error(j.error || 'Terjadi kesalahan'); }
   return j;
 }
@@ -138,14 +151,23 @@ async function mutate(action, payload, msg) { const j = await api(action, payloa
 
 /* ============ LOGIN ============ */
 function showLogin() { $('#app').hidden = true; $('#login').hidden = false; $('#pw').value = ''; setTimeout(() => $('#pw').focus(), 50); }
-function logout() { S.token = null; S.data = null; try { sessionStorage.removeItem('tok'); } catch (e) {} showLogin(); }
-$('#loginForm').addEventListener('submit', ev => {
+function logout() {
+  S.token = null; S.data = null;
+  try { sessionStorage.removeItem('tok'); } catch (e) {}
+  const d = $('#dlg'); if (d.open) d.close();
+  showLogin();
+}
+$('#loginForm').addEventListener('submit', async ev => {
   ev.preventDefault();
-  run(async () => {
+  const btn = $('#loginBtn'), err = $('#lerr');
+  err.textContent = ''; btn.disabled = true; bar(true);
+  try {
     const j = await api('login', { password: $('#pw').value });
     S.token = j.token; try { sessionStorage.setItem('tok', j.token); } catch (e) {}
     await boot();
-  });
+  } catch (e) {
+    err.textContent = e.message;
+  } finally { btn.disabled = false; bar(false); }
 });
 async function boot() {
   const j = await api('getAll'); S.data = j.data;
@@ -179,7 +201,12 @@ function waLink(a, miss) {
 }
 
 /* ============ CSV ============ */
-function csvCell(v) { v = String(v == null ? '' : v); if (/^[=+\-@\t\r]/.test(v)) v = "'" + v; return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; }
+function csvCell(v) {
+  v = String(v == null ? '' : v);
+  // Cegah formula injection di Excel, tetapi nomor telepon (+62...) dibiarkan apa adanya.
+  if (/^[=+\-@\t\r]/.test(v) && !/^\+?\d[\d\s.\-]*$/.test(v)) v = "'" + v;
+  return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+}
 function downloadCsv(name, rows) {
   const blob = new Blob(['\ufeff' + rows.map(r => r.map(csvCell).join(',')).join('\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
@@ -216,7 +243,7 @@ function vAnggota() {
     <div class="row" style="margin:12px 0"><input class="grow" data-f="aq" placeholder="Cari nama / alamat / telepon" value="${esc(S.f.aq)}">
     <select data-f="ast" style="width:auto"><option value="">Semua status</option>${['Aktif', 'Nonaktif', 'Meninggal'].map(s => `<option ${st === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
     ${rows.length ? `<div class="tw"><table><thead><tr><th>Nama</th><th>Telepon</th><th>Masuk</th><th class="n">Tanggungan</th><th>Status</th><th></th></tr></thead><tbody>
-    ${rows.map(a => `<tr><td><b>${esc(a.Nama)}</b><div class="muted">${esc(a.Alamat)}</div></td><td>${esc(a.Telepon)}</td><td>${esc(fmtTgl(a.TanggalMasuk))}</td><td class="n">${a.Tanggungan}</td><td>${statusBadge(a.Status)}</td>
+    ${rows.map(a => `<tr><td><b>${esc(a.Nama)}</b><div class="muted">${esc(a.Alamat)}</div></td><td>${esc(a.Telepon)}</td><td>${esc(fmtTgl(a.TanggalMasuk))}</td><td class="n">${esc(a.Tanggungan)}</td><td>${statusBadge(a.Status)}</td>
     <td class="n"><button class="ghost sm" data-act="editAnggota" data-id="${esc(a.ID)}">Ubah</button> <button class="danger sm" data-act="delAnggota" data-id="${esc(a.ID)}">Hapus</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada anggota yang cocok.</div>'}</div>`;
 }
 
@@ -302,11 +329,19 @@ function render() {
 /* ============ FORM / DIALOG ============ */
 function openForm(title, html, onSubmit, onReady) {
   const d = $('#dlg');
-  d.innerHTML = `<form id="frm"><h3>${esc(title)}</h3>${html}<div class="row end"><button type="button" class="ghost" data-act="closeDlg">Batal</button><button class="primary" type="submit">Simpan</button></div></form>`;
+  d.innerHTML = `<form id="frm"><h3>${esc(title)}</h3>${html}<p class="ferr" id="ferr" role="alert"></p><div class="row end"><button type="button" class="ghost" data-act="closeDlg">Batal</button><button class="primary" type="submit">Simpan</button></div></form>`;
   const f = $('#frm', d);
-  f.addEventListener('submit', ev => {
-    ev.preventDefault(); const btn = $('.primary', f); btn.disabled = true;
-    run(async () => { await onSubmit(Object.fromEntries(new FormData(f))); d.close(); }).finally(() => { btn.disabled = false; });
+  f.addEventListener('submit', async ev => {
+    ev.preventDefault();
+    const btn = $('.primary', f), err = $('#ferr', f);
+    err.textContent = ''; btn.disabled = true; bar(true);
+    try {
+      await onSubmit(Object.fromEntries(new FormData(f)));
+      d.close();
+    } catch (e) {
+      // Error ditampilkan di dalam dialog (toast tertutup oleh dialog modal).
+      if (!S.token) toast(e.message, true); else err.textContent = e.message;
+    } finally { btn.disabled = false; bar(false); }
   });
   if (onReady) onReady(f);
   d.showModal();
@@ -315,6 +350,7 @@ const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? 'selecte
 
 function formAnggota(id) {
   const a = id ? S.data.anggota.find(x => x.ID === id) : { Nama: '', Alamat: '', Telepon: '', TanggalMasuk: today(), Status: 'Aktif', Tanggungan: 0, Catatan: '' };
+  if (!a) return;
   openForm(id ? 'Ubah anggota' : 'Tambah anggota', `
     <label>Nama</label><input name="Nama" value="${esc(a.Nama)}" required maxlength="100">
     <label>Alamat</label><input name="Alamat" value="${esc(a.Alamat)}" maxlength="300">
@@ -338,7 +374,7 @@ function formBayar(preId) {
     <label>Anggota</label><select name="AnggotaID">${aktif.map(a => opt(a.ID, cur, a.Nama)).join('')}</select>
     <div class="two"><div><label>Dari bulan</label><input name="dari" type="month" value="${firstUnpaid(cur)}" required></div>
     <div><label>Sampai bulan</label><input name="sampai" type="month" value="${thisMonth()}" required></div></div>
-    <p class="muted" style="margin:6px 0 0">Bulan yang sudah lunas otomatis dilewati.</p>
+    <p class="muted" style="margin:6px 0 0">Bulan yang sudah lunas otomatis dilewati. Maksimal 60 bulan sekali input.</p>
     <div class="two"><div><label>Jumlah per bulan (Rp)</label><input name="Jumlah" type="number" min="1" value="${iurBulanan()}" required></div>
     <div><label>Tanggal bayar</label><input name="TanggalBayar" type="date" value="${today()}" required></div></div>
     <div class="two"><div><label>Metode</label><select name="Metode">${['Tunai', 'Transfer'].map(m => opt(m, 'Tunai')).join('')}</select></div>
@@ -348,6 +384,7 @@ function formBayar(preId) {
       const paid = paidSet(v.AnggotaID);
       const periodes = monthRange(v.dari, v.sampai).filter(p => !paid.has(p));
       if (!periodes.length) throw new Error('Semua bulan pada rentang itu sudah lunas.');
+      if (periodes.length > 60) throw new Error('Maksimal 60 bulan sekali input. Persempit rentang bulan, lalu ulangi untuk sisanya.');
       await mutate('saveIuranBatch', { row: { AnggotaID: v.AnggotaID, Periodes: periodes, Jumlah: v.Jumlah, TanggalBayar: v.TanggalBayar, Metode: v.Metode, Catatan: v.Catatan } }, periodes.length + ' bulan tercatat');
     },
     f => f.elements.AnggotaID.addEventListener('change', e => { f.elements.dari.value = firstUnpaid(e.target.value); }));
