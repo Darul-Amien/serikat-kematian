@@ -188,6 +188,11 @@ const sumK = k => {
   const tg = TG().filter(t => t.KematianID === k.ID), paid = tg.filter(t => t.TanggalBayar);
   return { tg, n: tg.length, nPaid: paid.length, target: tg.reduce((s, t) => s + t.Jumlah, 0), terkumpul: paid.reduce((s, t) => s + t.Jumlah, 0) };
 };
+// Santunan dihitung dari TOTAL TAGIHAN (bukan yang terkumpul). Kekurangan ditalangi kas.
+const santunanOf = k => k.Status === 'Dicairkan' ? k.Santunan : Math.floor(sumK(k).target * (+k.Persen || 95) / 100);
+const talangan = k => Math.max(0, santunanOf(k) - sumK(k).terkumpul);
+// Santunan lama (dicairkan berdasarkan yang terkumpul) tetap terkunci; yang baru (Mode = Target) boleh dibayar susulan.
+const bisaBayar = k => k.Status !== 'Dicairkan' || k.Mode === 'Target';
 
 function paidSet(id) { return new Set(S.data.iuran.filter(i => i.AnggotaID === id).map(i => i.Periode)); }
 
@@ -231,6 +236,7 @@ function vDash() {
   const target = aktif.length * iurBulanan();
   const tg = tunggakan().sort((x, y) => y.miss.length - x.miss.length);
   const last = [...d.kas].sort(cmpTgl).slice(0, 6);
+  const talanganTotal = KM().filter(k => k.Status === 'Dicairkan' && k.Mode === 'Target').reduce((s, k) => s + talangan(k), 0);
   return `<div class="grid">
     <div class="stat"><small>Saldo kas</small><b>${rp(saldoKas())}</b></div>
     <div class="stat"><small>KK aktif</small><b>${aktif.length}</b></div>
@@ -238,6 +244,7 @@ function vDash() {
     <div class="stat"><small>Iuran ${esc(fmtPeriode(thisMonth()))}</small><b>${rp(terkumpul)}</b><small>target ${rp(target)}</small></div>
     <div class="stat"><small>Anggota menunggak</small><b>${tg.length}</b></div>
     <div class="stat"><small>Santunan belum lunas</small><b>${TG().filter(t => !t.TanggalBayar).length}</b><small>tagihan</small></div>
+    <div class="stat"><small>Talangan kas belum pulih</small><b class="${talanganTotal ? 'out' : ''}">${rp(talanganTotal)}</b></div>
   </div>
   <div class="card"><div class="row between"><h3>Transaksi terakhir</h3><button class="ghost sm" data-tab="kas">Lihat kas</button></div>
   ${last.length ? `<div class="tw"><table><tbody>${last.map(k => `<tr><td>${esc(fmtTgl(k.Tanggal))}</td><td>${esc(k.Keterangan || k.Kategori)}</td><td class="n ${k.Jenis === 'Masuk' ? 'in' : 'out'}">${k.Jenis === 'Masuk' ? '+' : '−'}${rp(k.Jumlah)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada transaksi.</div>'}</div>
@@ -326,7 +333,7 @@ function vSet() {
   <div class="two"><div><label>Iuran per bulan per KK (Rp)</label><input name="IuranBulanan" type="number" min="0" step="1000" value="${esc(s.IuranBulanan)}" required></div>
   <div><label>Santunan per jiwa (Rp)</label><input name="SantunanKematian" type="number" min="0" step="500" value="${esc(s.SantunanKematian)}"></div></div>
   <label>Persen santunan yang diserahkan ke keluarga (%)</label><input name="PersenSantunan" type="number" min="1" max="100" value="${esc(s.PersenSantunan || 95)}" required>
-  <p class="muted" style="margin:4px 0 0">Sisanya otomatis masuk kas serikat saat santunan dicairkan.</p>
+  <p class="muted" style="margin:4px 0 0">Dihitung dari total tagihan. Sisanya menjadi bagian kas serikat setelah semua tagihan lunas.</p>
   <div class="row end"><button class="primary" type="submit">Simpan pengaturan</button></div></form></div>
   <div class="card"><h3>Catatan</h3><p class="muted">Password pengurus diubah lewat Apps Script: Project Settings → Script properties → <code>ADMIN_PASSWORD</code>. Data tersimpan di Google Sheet milikmu; buat salinan (File → Make a copy) secara berkala sebagai cadangan.</p></div>`;
 }
@@ -354,29 +361,32 @@ function vSantunan() {
   const set = S.data.pengaturan, q = S.f.sq.toLowerCase();
   const rows = [...KM()].sort(cmpTgl).filter(k => !q || (k.Almarhum + ' ' + nama(k.AnggotaID)).toLowerCase().includes(q));
   return `<div class="card"><div class="row between"><h3>Santunan kematian (${rows.length})</h3><div class="row"><button class="ghost sm" data-act="exportKematian">Ekspor CSV</button><button class="primary sm" data-act="addKematian">+ Catat kematian</button></div></div>
-  <p class="muted" style="margin:6px 0 12px">Tarif ${rp(+set.SantunanKematian)} per jiwa, ditagih ke semua KK aktif setiap ada yang meninggal. ${esc(set.PersenSantunan)}% dari yang terkumpul diserahkan ke keluarga, sisanya masuk kas.</p>
+  <p class="muted" style="margin:6px 0 12px">Tarif ${rp(+set.SantunanKematian)} per jiwa, ditagih ke semua KK aktif setiap ada yang meninggal. ${esc(set.PersenSantunan)}% dari total tagihan diserahkan ke keluarga. Kekurangan karena KK belum bayar ditalangi kas dan pulih saat dibayar.</p>
   <div class="row" style="margin:0 0 12px"><input class="grow" data-f="sq" placeholder="Cari nama almarhum / KK" value="${esc(S.f.sq)}"></div>
   ${rows.length ? `<div class="tw"><table><thead><tr><th>Tanggal</th><th>Almarhum</th><th>Terkumpul</th><th>Status</th><th></th></tr></thead><tbody>
-  ${rows.map(k => { const m = sumK(k); return `<tr><td>${esc(fmtTgl(k.Tanggal))}</td><td><b>${esc(k.Almarhum)}</b><div class="muted">KK ${esc(nama(k.AnggotaID))}</div></td><td>${rp(m.terkumpul)} <span class="muted">/ ${rp(m.target)} · ${m.nPaid}/${m.n} KK</span></td><td>${k.Status === 'Dicairkan' ? '<span class="badge">Dicairkan</span>' : '<span class="badge off">Berjalan</span>'}</td><td class="n"><button class="ghost sm" data-act="openSantunan" data-id="${esc(k.ID)}">Kelola</button></td></tr>`; }).join('')}</tbody></table></div>` : '<div class="empty">Belum ada kejadian kematian.</div>'}</div>`;
+  ${rows.map(k => { const m = sumK(k), tal = k.Status === 'Dicairkan' && k.Mode === 'Target' ? talangan(k) : 0; return `<tr><td>${esc(fmtTgl(k.Tanggal))}</td><td><b>${esc(k.Almarhum)}</b><div class="muted">KK ${esc(nama(k.AnggotaID))}</div></td><td>${rp(m.terkumpul)} <span class="muted">/ ${rp(m.target)} · ${m.nPaid}/${m.n} KK</span></td><td>${k.Status === 'Dicairkan' ? '<span class="badge">Dicairkan</span>' : '<span class="badge off">Berjalan</span>'}${tal ? '<div class="muted out">talangan ' + rp(tal) + '</div>' : ''}</td><td class="n"><button class="ghost sm" data-act="openSantunan" data-id="${esc(k.ID)}">Kelola</button></td></tr>`; }).join('')}</tbody></table></div>` : '<div class="empty">Belum ada kejadian kematian.</div>'}</div>`;
 }
 
 function vSantunanDetail(k) {
   const m = sumK(k), persen = +k.Persen || 95, done = k.Status === 'Dicairkan';
-  const santunan = done ? k.Santunan : Math.floor(m.terkumpul * persen / 100), bagian = done ? k.BagianKas : m.terkumpul - santunan;
+  const santunan = santunanOf(k), bagian = m.target - santunan, tal = talangan(k);
   const list = [...m.tg].sort((a, b) => (!!a.TanggalBayar - !!b.TanggalBayar) || nama(a.AnggotaID).localeCompare(nama(b.AnggotaID)));
   return `<div class="row" style="margin-bottom:12px"><button class="ghost sm" data-act="backSantunan">← Kembali</button></div>
   <div class="grid">
     <div class="stat"><small>Total tagihan</small><b>${rp(m.target)}</b></div>
     <div class="stat"><small>Terkumpul (${m.nPaid}/${m.n} KK)</small><b class="in">${rp(m.terkumpul)}</b></div>
     <div class="stat"><small>Untuk keluarga (${persen}%)</small><b>${rp(santunan)}</b></div>
-    <div class="stat"><small>Masuk kas (${100 - persen}%)</small><b>${rp(bagian)}</b></div>
+    <div class="stat"><small>Talangan kas</small><b class="${tal ? 'out' : ''}">${rp(tal)}</b><small>${tal ? 'belum pulih' : 'tidak ada'}</small></div>
+    <div class="stat"><small>Bagian kas (${100 - persen}%)</small><b>${rp(bagian)}</b></div>
   </div>
   <div class="card"><div class="row between"><div><h3>${esc(k.Almarhum)}</h3><div class="muted">KK ${esc(nama(k.AnggotaID))} · ${esc(fmtTgl(k.Tanggal))} · ${rp(k.TarifPerJiwa)} per jiwa</div></div>
     <div class="row">${done ? `<span class="badge">Dicairkan ${esc(fmtTgl(k.TanggalCair))}</span>` : `<button class="primary sm" data-act="cairkan" data-id="${esc(k.ID)}">Cairkan santunan</button><button class="danger sm" data-act="delKematian" data-id="${esc(k.ID)}">Hapus</button>`}</div></div>
+  ${done && !bisaBayar(k) ? '<p class="muted" style="margin:8px 0 0">Dicairkan dengan metode lama (berdasarkan yang terkumpul), tagihan tidak dapat diubah.</p>' : ''}
   <div class="tw" style="margin-top:12px"><table><thead><tr><th>KK</th><th class="n">Jiwa</th><th class="n">Tagihan</th><th>Status</th><th></th></tr></thead><tbody>
   ${list.map(t => { const a = S.data.anggota.find(x => x.ID === t.AnggotaID), w = a && !t.TanggalBayar ? waSantunan(a, t, k) : '';
+    const bisaBatal = !done || S.data.kas.some(c => c.Referensi === 'T:' + t.ID);
     return `<tr><td>${esc(nama(t.AnggotaID))}</td><td class="n">${t.Jiwa}</td><td class="n">${rp(t.Jumlah)}</td><td>${t.TanggalBayar ? '<span class="badge">Lunas ' + esc(fmtTgl(t.TanggalBayar)) + '</span>' : '<span class="badge bad">Belum</span>'}</td>
-    <td class="n">${done ? '' : t.TanggalBayar ? `<button class="ghost sm" data-act="batalLunas" data-id="${esc(t.ID)}">Batalkan</button>` : `<button class="ghost sm" data-act="lunas" data-id="${esc(t.ID)}">Tandai lunas</button> ${w ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(w)}">WhatsApp</a>` : ''}`}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+    <td class="n">${t.TanggalBayar ? (bisaBatal ? `<button class="ghost sm" data-act="batalLunas" data-id="${esc(t.ID)}">Batalkan</button>` : '') : (bisaBayar(k) ? `<button class="ghost sm" data-act="lunas" data-id="${esc(t.ID)}">Tandai lunas</button> ${w ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(w)}">WhatsApp</a>` : ''}` : '')}</td></tr>`; }).join('')}</tbody></table></div></div>`;
 }
 
 function formKematian() {
@@ -522,8 +532,14 @@ document.addEventListener('click', ev => {
     case 'lunas': formLunas(id); break;
     case 'batalLunas': run(() => mutate('bayarTagihan', { row: { ID: id, Batal: true } }, 'Pembayaran dibatalkan')); break;
     case 'cairkan': {
-      const k = KM().find(x => x.ID === id), m = sumK(k), sant = Math.floor(m.terkumpul * (+k.Persen || 95) / 100);
-      if (confirm('Cairkan santunan ' + rp(sant) + ' untuk keluarga ' + k.Almarhum + '?\n' + (m.n - m.nPaid) + ' KK belum bayar. Setelah dicairkan, tagihan tidak dapat diubah.')) run(() => mutate('cairkanSantunan', { id }, 'Santunan dicairkan'));
+      const k = KM().find(x => x.ID === id), m = sumK(k), sant = santunanOf(k), tal = talangan(k);
+      let msg = 'Cairkan santunan ' + rp(sant) + ' untuk keluarga ' + k.Almarhum + '?\n' + (m.n - m.nPaid) + ' KK belum bayar.';
+      if (tal > 0) {
+        msg += '\n\nKas akan menalangi ' + rp(tal) + ' (saldo kas saat ini ' + rp(saldoKas()) + ').';
+        if (tal > saldoKas()) msg += '\n⚠ SALDO KAS TIDAK CUKUP untuk menalangi.';
+        msg += '\nTagihan yang belum lunas tetap bisa dicatat setelah ini dan akan memulihkan kas.';
+      }
+      if (confirm(msg)) run(() => mutate('cairkanSantunan', { id }, 'Santunan dicairkan'));
       break;
     }
     case 'delKematian': if (confirm('Batalkan pencatatan kematian ini? Jumlah jiwa KK dikembalikan dan semua tagihan dihapus.')) { run(() => mutate('deleteKematian', { id }, 'Pencatatan dibatalkan').then(() => { S.sid = ''; render(); })); } break;
