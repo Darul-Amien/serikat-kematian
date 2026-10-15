@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#1f6f5c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Administrasi Serikat Kematian</title>
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--text:#1b2430;--muted:#66717f;--line:#e2e6ea;--pri:#1f6f5c;--pri-soft:#e3f2ee;--onpri:#fff;--danger:#b42318;--ok:#067647;--warn:#b54708}
@@ -61,6 +64,25 @@ dialog h3{margin-bottom:4px}
 @keyframes pulse{50%{opacity:.35}}
 .rpt h2{margin-bottom:2px}
 @media (max-width:560px){.two{grid-template-columns:1fr}}
+.tg{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.tg .nm{font-weight:600;font-size:16px}
+.tg .ln{margin:4px 0}
+.tg .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.tg .acts .primary{flex:1;min-width:150px}
+button,a.btn,nav button{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+@media (max-width:640px){
+ body{font-size:16px}
+ input,select,textarea{font-size:16px;padding:11px 12px}
+ button.primary,button.ghost,button.danger,a.btn{padding:11px 16px;font-size:15px}
+ button.sm,a.btn.sm{padding:9px 13px;font-size:14px}
+ nav{padding:8px 12px}nav button{padding:10px 16px}
+ main{padding:12px 12px 48px}
+ .card{padding:14px}
+ .grid{grid-template-columns:1fr 1fr}
+ .stat b{font-size:19px}
+ dialog{width:100vw;max-width:100vw;margin:auto 0 0;border-radius:16px 16px 0 0;max-height:92vh;overflow:auto;padding:16px}
+ th,td{padding:10px 8px}
+}
 @media print{header,nav,.noprint,#toast{display:none!important}body{background:#fff;color:#000}.card{border:none;padding:0}main{padding:0}}
 </style>
 </head>
@@ -84,6 +106,7 @@ dialog h3{margin-bottom:4px}
     <button class="ghost sm" data-act="logout">Keluar</button>
   </header>
   <nav id="nav">
+    <button data-tab="tagih">Tagih</button>
     <button data-tab="dashboard">Dashboard</button>
     <button data-tab="anggota">Anggota</button>
     <button data-tab="iuran">Iuran</button>
@@ -104,7 +127,7 @@ dialog h3{margin-bottom:4px}
 const API_URL = 'https://script.google.com/macros/s/AKfycbwbtIzhauLLo_XhctBvnMcBlpPK2Q7G7fSuqOzF-fwZu2OhxeiAbifXKaQDBXXACte1/exec';
 
 /* ============ STATE & HELPER ============ */
-const S = { token: null, data: null, tab: 'dashboard', sid: '', f: {} };
+const S = { token: null, data: null, tab: 'tagih', sid: '', f: {} };
 try { S.token = sessionStorage.getItem('tok'); } catch (e) {}
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -117,7 +140,7 @@ const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', '
 const fmtPeriode = p => { const [y, m] = String(p).split('-'); return BULAN[+m - 1] + ' ' + y; };
 const fmtTgl = t => { if (!t) return '-'; const [y, m, d] = t.split('-'); return +d + ' ' + BULAN[+m - 1].slice(0, 3) + ' ' + y; };
 
-S.f = { sq: '', aq: '', ast: '', iq: '', iuranM: '', kasM: thisMonth(), rMode: 'bulan', rMonth: thisMonth(), rYear: today().slice(0, 4) };
+S.f = { tq: '', sq: '', aq: '', ast: '', iq: '', iuranM: '', kasM: thisMonth(), rMode: 'bulan', rMonth: thisMonth(), rYear: today().slice(0, 4) };
 
 function monthRange(from, to) {
   const out = []; let [y, m] = from.split('-').map(Number); const [ty, tm] = to.split('-').map(Number);
@@ -186,11 +209,13 @@ const almLine = id => { const l = KM().filter(k => k.AnggotaID === id); return l
 const jiwaAktif = () => S.data.anggota.filter(a => a.Status === 'Aktif').reduce((s, a) => s + (+a.Tanggungan || 0), 0);
 const sumK = k => {
   const tg = TG().filter(t => t.KematianID === k.ID), paid = tg.filter(t => t.TanggalBayar);
-  return { tg, n: tg.length, nPaid: paid.length, target: tg.reduce((s, t) => s + t.Jumlah, 0), terkumpul: paid.reduce((s, t) => s + t.Jumlah, 0) };
+  return { tg, n: tg.length, nPaid: paid.length, target: tg.reduce((s, t) => s + t.Jumlah, 0), terkumpul: paid.reduce((s, t) => s + t.Jumlah, 0), hapus: tg.filter(t => !t.TanggalBayar && t.Dihapuskan).reduce((s, t) => s + t.Jumlah, 0) };
 };
 // Santunan dihitung dari TOTAL TAGIHAN (bukan yang terkumpul). Kekurangan ditalangi kas.
 const santunanOf = k => k.Status === 'Dicairkan' ? k.Santunan : Math.floor(sumK(k).target * (+k.Persen || 95) / 100);
-const talangan = k => Math.max(0, santunanOf(k) - sumK(k).terkumpul);
+// talangan = kekurangan kas yang masih bisa pulih dari tagihan yang belum dibayar; ditanggung = bagian yang sudah dihapuskan (permanen)
+const talangan = k => { const m = sumK(k); return Math.min(Math.max(0, santunanOf(k) - m.terkumpul), m.target - m.terkumpul - m.hapus); };
+const ditanggung = k => Math.max(0, santunanOf(k) - sumK(k).terkumpul) - talangan(k);
 // Santunan lama (dicairkan berdasarkan yang terkumpul) tetap terkunci; yang baru (Mode = Target) boleh dibayar susulan.
 const bisaBayar = k => k.Status !== 'Dicairkan' || k.Mode === 'Target';
 
@@ -211,7 +236,7 @@ function tunggakanAll() {
   const base = new Map(tunggakan().map(x => [x.a.ID, x]));
   return S.data.anggota.map(a => {
     const b = base.get(a.ID) || { a, miss: [], total: 0 };
-    const sant = TG().filter(t => t.AnggotaID === a.ID && !t.TanggalBayar)
+    const sant = TG().filter(t => t.AnggotaID === a.ID && !t.TanggalBayar && !t.Dihapuskan)
       .map(t => ({ t, k: KM().find(x => x.ID === t.KematianID) })).filter(x => x.k);
     return Object.assign({}, b, { sant, santTotal: sant.reduce((s, x) => s + x.t.Jumlah, 0) });
   }).filter(x => x.miss.length || x.sant.length).sort((x, y) => (y.total + y.santTotal) - (x.total + x.santTotal));
@@ -267,7 +292,7 @@ function vDash() {
     <div class="stat"><small>Jiwa aktif</small><b>${jiwaAktif()}</b></div>
     <div class="stat"><small>Iuran ${esc(fmtPeriode(thisMonth()))}</small><b>${rp(terkumpul)}</b><small>target ${rp(target)}</small></div>
     <div class="stat"><small>Anggota menunggak</small><b>${tg.length}</b></div>
-    <div class="stat"><small>Santunan belum lunas</small><b>${TG().filter(t => !t.TanggalBayar).length}</b><small>tagihan</small></div>
+    <div class="stat"><small>Santunan belum lunas</small><b>${TG().filter(t => !t.TanggalBayar && !t.Dihapuskan).length}</b><small>tagihan</small></div>
     <div class="stat"><small>Talangan kas belum pulih</small><b class="${talanganTotal ? 'out' : ''}">${rp(talanganTotal)}</b></div>
   </div>
   <div class="card"><div class="row between"><h3>Transaksi terakhir</h3><button class="ghost sm" data-tab="kas">Lihat kas</button></div>
@@ -365,7 +390,7 @@ function vSet() {
 }
 
 function tgSantunanCard() {
-  const L = TG().filter(t => !t.TanggalBayar).map(t => ({ t, k: KM().find(x => x.ID === t.KematianID), a: S.data.anggota.find(x => x.ID === t.AnggotaID) }))
+  const L = TG().filter(t => !t.TanggalBayar && !t.Dihapuskan).map(t => ({ t, k: KM().find(x => x.ID === t.KematianID), a: S.data.anggota.find(x => x.ID === t.AnggotaID) }))
     .filter(x => x.k && x.a).sort((p, q) => p.a.Nama.localeCompare(q.a.Nama));
   const total = L.reduce((s, x) => s + x.t.Jumlah, 0);
   return `<div class="card"><h3>Santunan belum dibayar (${L.length} tagihan · ${rp(total)})</h3>
@@ -395,8 +420,9 @@ function vSantunan() {
 
 function vSantunanDetail(k) {
   const m = sumK(k), persen = +k.Persen || 95, done = k.Status === 'Dicairkan';
-  const santunan = santunanOf(k), bagian = m.target - santunan, tal = talangan(k);
-  const list = [...m.tg].sort((a, b) => (!!a.TanggalBayar - !!b.TanggalBayar) || nama(a.AnggotaID).localeCompare(nama(b.AnggotaID)));
+  const santunan = santunanOf(k), bagian = m.target - santunan, tal = talangan(k), dt = ditanggung(k);
+  const rank = t => t.TanggalBayar ? 2 : t.Dihapuskan ? 1 : 0;
+  const list = [...m.tg].sort((a, b) => (rank(a) - rank(b)) || nama(a.AnggotaID).localeCompare(nama(b.AnggotaID)));
   return `<div class="row" style="margin-bottom:12px"><button class="ghost sm" data-act="backSantunan">← Kembali</button></div>
   <div class="grid">
     <div class="stat"><small>Total tagihan</small><b>${rp(m.target)}</b></div>
@@ -404,15 +430,16 @@ function vSantunanDetail(k) {
     <div class="stat"><small>Untuk keluarga (${persen}%)</small><b>${rp(santunan)}</b></div>
     <div class="stat"><small>Talangan kas</small><b class="${tal ? 'out' : ''}">${rp(tal)}</b><small>${tal ? 'belum pulih' : 'tidak ada'}</small></div>
     <div class="stat"><small>Bagian kas (${100 - persen}%)</small><b>${rp(bagian)}</b></div>
+    ${dt ? `<div class="stat"><small>Ditanggung kas (dihapuskan)</small><b class="out">${rp(dt)}</b><small>tidak akan pulih</small></div>` : ''}
   </div>
   <div class="card"><div class="row between"><div><h3>${esc(k.Almarhum)}</h3><div class="muted">KK ${esc(nama(k.AnggotaID))} · ${esc(fmtTgl(k.Tanggal))} · ${rp(k.TarifPerJiwa)} per jiwa</div></div>
     <div class="row">${done ? `<span class="badge">Dicairkan ${esc(fmtTgl(k.TanggalCair))}</span>` : `<button class="primary sm" data-act="cairkan" data-id="${esc(k.ID)}">Cairkan santunan</button><button class="danger sm" data-act="delKematian" data-id="${esc(k.ID)}">Hapus</button>`}</div></div>
   ${done && !bisaBayar(k) ? '<p class="muted" style="margin:8px 0 0">Dicairkan dengan metode lama (berdasarkan yang terkumpul), tagihan tidak dapat diubah.</p>' : ''}
   <div class="tw" style="margin-top:12px"><table><thead><tr><th>KK</th><th class="n">Jiwa</th><th class="n">Tagihan</th><th>Status</th><th></th></tr></thead><tbody>
-  ${list.map(t => { const a = S.data.anggota.find(x => x.ID === t.AnggotaID), w = a && !t.TanggalBayar ? waSantunan(a, t, k) : '';
+  ${list.map(t => { const a = S.data.anggota.find(x => x.ID === t.AnggotaID), w = a && !t.TanggalBayar && !t.Dihapuskan ? waSantunan(a, t, k) : '';
     const bisaBatal = !done || S.data.kas.some(c => c.Referensi === 'T:' + t.ID);
-    return `<tr><td>${esc(nama(t.AnggotaID))}</td><td class="n">${t.Jiwa}</td><td class="n">${rp(t.Jumlah)}</td><td>${t.TanggalBayar ? '<span class="badge">Lunas ' + esc(fmtTgl(t.TanggalBayar)) + '</span>' : '<span class="badge bad">Belum</span>'}</td>
-    <td class="n">${t.TanggalBayar ? (bisaBatal ? `<button class="ghost sm" data-act="batalLunas" data-id="${esc(t.ID)}">Batalkan</button>` : '') : (bisaBayar(k) ? `<button class="ghost sm" data-act="lunas" data-id="${esc(t.ID)}">Tandai lunas</button> ${w ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(w)}">WhatsApp</a>` : ''}` : '')}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+    return `<tr><td>${esc(nama(t.AnggotaID))}</td><td class="n">${t.Jiwa}</td><td class="n">${rp(t.Jumlah)}</td><td>${t.TanggalBayar ? '<span class="badge">Lunas ' + esc(fmtTgl(t.TanggalBayar)) + '</span>' : t.Dihapuskan ? '<span class="badge off">Dihapuskan ' + esc(fmtTgl(t.Dihapuskan)) + '</span>' : '<span class="badge bad">Belum</span>'}</td>
+    <td class="n">${t.Dihapuskan ? `<button class="ghost sm" data-act="batalHapus" data-id="${esc(t.ID)}">Batalkan penghapusan</button>` : t.TanggalBayar ? (bisaBatal ? `<button class="ghost sm" data-act="batalLunas" data-id="${esc(t.ID)}">Batalkan</button>` : '') : (bisaBayar(k) ? `<button class="ghost sm" data-act="lunas" data-id="${esc(t.ID)}">Tandai lunas</button> ${done ? `<button class="danger sm" data-act="hapuskan" data-id="${esc(t.ID)}">Hapuskan</button> ` : ''}${w ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(w)}">WhatsApp</a>` : ''}` : '')}</td></tr>`; }).join('')}</tbody></table></div></div>`;
 }
 
 function formKematian() {
@@ -438,7 +465,59 @@ function formLunas(id) {
     v => mutate('bayarTagihan', { row: { ID: id, TanggalBayar: v.TanggalBayar, Metode: v.Metode } }, 'Pembayaran dicatat'));
 }
 
-const VIEWS = { dashboard: vDash, anggota: vAnggota, iuran: vIuran, santunan: vSantunan, kas: vKas, laporan: vLaporan, pengaturan: vSet };
+/* ============ MODE TAGIH (HP) ============ */
+function vTagih() {
+  const q = S.f.tq.toLowerCase();
+  const all = tunggakanAll();
+  const L = all.filter(x => !q || (x.a.Nama + ' ' + x.a.Alamat).toLowerCase().includes(q));
+  const total = all.reduce((s, x) => s + x.total + x.santTotal, 0);
+  return `<div class="grid"><div class="stat"><small>Belum tertagih</small><b class="out">${rp(total)}</b><small>${all.length} KK</small></div>
+  <div class="stat"><small>Saldo kas</small><b>${rp(saldoKas())}</b></div></div>
+  <div class="card"><input data-f="tq" placeholder="Cari nama / alamat" value="${esc(S.f.tq)}" style="margin-bottom:12px">
+  ${L.length ? L.map(x => { const w = waLink(x.a, x.miss, x.sant), tel = String(x.a.Telepon || '').replace(/[^\d+]/g, '');
+    return `<div class="tg"><div class="row between"><span class="nm">${esc(x.a.Nama)}</span><b class="out">${rp(x.total + x.santTotal)}</b></div>
+    ${x.a.Alamat ? `<div class="muted">${esc(x.a.Alamat)}</div>` : ''}
+    ${x.miss.length ? `<div class="ln">Iuran: <b>${x.miss.length} bulan</b> <span class="muted">(${esc(fmtPeriode(x.miss[0]))}${x.miss.length > 1 ? ' – ' + esc(fmtPeriode(x.miss[x.miss.length - 1])) : ''})</span></div>` : ''}
+    ${x.sant.map(s => `<div class="ln">Santunan ${esc(s.k.Almarhum)}: <b>${rp(s.t.Jumlah)}</b></div>`).join('')}
+    <div class="acts"><button class="primary" data-act="terima" data-id="${esc(x.a.ID)}">Terima bayar</button>
+    ${w ? `<a class="btn" target="_blank" rel="noopener" href="${esc(w)}">WhatsApp</a>` : ''}${tel ? `<a class="btn" href="tel:${esc(tel)}">Telepon</a>` : ''}</div></div>`; }).join('')
+    : `<div class="empty">${all.length ? 'Tidak ada yang cocok.' : 'Semua iuran dan santunan sudah lunas 🎉'}</div>`}</div>`;
+}
+
+function formTerima(id) {
+  const x = tunggakanAll().find(y => y.a.ID === id); if (!x) return;
+  const sant = x.sant.filter(s => bisaBayar(s.k)), iur = iurBulanan();
+  openForm('Terima bayar · ' + x.a.Nama, `
+    ${x.miss.length ? `<label>Iuran: bayar berapa bulan? (belum bayar ${x.miss.length} bulan)</label><input name="n" type="number" min="0" max="${x.miss.length}" value="${x.miss.length}" inputmode="numeric">` : ''}
+    ${sant.map(s => `<label style="display:flex;gap:10px;align-items:center;color:var(--text);font-size:15px"><input type="checkbox" name="s_${esc(s.t.ID)}" checked style="width:auto"> Santunan ${esc(s.k.Almarhum)} · ${rp(s.t.Jumlah)}</label>`).join('')}
+    <div class="two"><div><label>Tanggal bayar</label><input name="TanggalBayar" type="date" value="${today()}" required></div>
+    <div><label>Metode</label><select name="Metode">${['Tunai', 'Transfer'].map(m => opt(m, 'Tunai')).join('')}</select></div></div>
+    <p style="margin:12px 0 0;font-size:17px">Total diterima: <b id="qtot"></b></p>`,
+    async v => {
+      const n = x.miss.length ? Math.min(x.miss.length, Math.max(0, Math.floor(+v.n || 0))) : 0;
+      const ids = sant.filter(s => v['s_' + s.t.ID]).map(s => s.t.ID);
+      if (!n && !ids.length) throw new Error('Belum ada yang dipilih untuk dibayar.');
+      let j;
+      try {
+        if (n) j = await api('saveIuranBatch', { row: { AnggotaID: id, Periodes: x.miss.slice(0, n), Jumlah: iur, TanggalBayar: v.TanggalBayar, Metode: v.Metode, Catatan: '' } });
+        for (const tid of ids) j = await api('bayarTagihan', { row: { ID: tid, TanggalBayar: v.TanggalBayar, Metode: v.Metode } });
+      } catch (e) {
+        try { const g = await api('getAll'); S.data = g.data; render(); } catch (_) {}
+        throw e;
+      }
+      S.data = j.data; render(); toast('Pembayaran ' + x.a.Nama + ' tercatat');
+    },
+    f => {
+      const upd = () => {
+        const n = f.elements.n ? Math.min(x.miss.length, Math.max(0, Math.floor(+f.elements.n.value || 0))) : 0;
+        const tot = n * iur + sant.filter(s => f.elements['s_' + s.t.ID].checked).reduce((z, s) => z + s.t.Jumlah, 0);
+        $('#qtot', f).textContent = rp(tot);
+      };
+      f.addEventListener('input', upd); upd();
+    });
+}
+
+const VIEWS = { tagih: vTagih, dashboard: vDash, anggota: vAnggota, iuran: vIuran, santunan: vSantunan, kas: vKas, laporan: vLaporan, pengaturan: vSet };
 
 function render() {
   if (!S.data) return;
@@ -545,6 +624,13 @@ document.addEventListener('click', ev => {
     case 'addAnggota': formAnggota(); break;
     case 'editAnggota': formAnggota(id); break;
     case 'delAnggota': if (confirm('Hapus anggota "' + nama(id) + '"?')) run(() => mutate('deleteAnggota', { id }, 'Anggota dihapus')); break;
+    case 'terima': formTerima(id); break;
+    case 'hapuskan': {
+      const t = TG().find(x => x.ID === id);
+      if (t && confirm('Hapuskan tagihan santunan ' + rp(t.Jumlah) + ' dari KK ' + nama(t.AnggotaID) + '?\nKas menanggung jumlah ini secara permanen dan tagihan tidak muncul lagi di daftar tunggakan. Bisa dibatalkan nanti.')) run(() => mutate('hapuskanTagihan', { row: { ID: id } }, 'Tagihan dihapuskan'));
+      break;
+    }
+    case 'batalHapus': run(() => mutate('hapuskanTagihan', { row: { ID: id, Batal: true } }, 'Penghapusan dibatalkan')); break;
     case 'payIuran': formBayar(id); break;
     case 'editIuran': formIuran(id); break;
     case 'delIuran': if (confirm('Hapus pembayaran iuran ini? Catatan kas terkait ikut terhapus.')) run(() => mutate('deleteIuran', { id }, 'Iuran dihapus')); break;
