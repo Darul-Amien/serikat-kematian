@@ -83,7 +83,6 @@ input:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px var(--ring
 
 <script>
 /* ============ KONFIGURASI ============ */
-// URL Web App Apps Script yang sama dengan aplikasi admin (berakhiran /exec)
 const API_URL = 'https://script.google.com/macros/s/AKfycbwbtIzhauLLo_XhctBvnMcBlpPK2Q7G7fSuqOzF-fwZu2OhxeiAbifXKaQDBXXACte1/exec';
 
 const S = { token: null, d: null, tab: 'home', info: { namaSerikat: 'Serikat Kematian', waAdmin: '' } };
@@ -142,8 +141,7 @@ $('#loginForm').addEventListener('submit', async ev => {
 $('#lupa').onclick = () => {
   const w = waNum(S.info.waAdmin);
   if (!w) return toast('Nomor admin belum diatur. Hubungi pengurus secara langsung.', true);
-  const ni = $('#ni').value.trim();
-  const msg = 'Assalamu'alaikum ustadz admin ' + S.info.namaSerikat + ', ulun lupa PIN akun anggota' + (ni ? ' (No. induk: ' + ni + ')' : '') + '. Mohon bantu reset PIN ulun. Terima kasih.';
+  const msg = "Assalamu'alaikum ustad admin " + S.info.namaSerikat + ", ulun lupa PIN akun anggota. Mohon bantu reset PIN ulun. Terima kasih.";
   window.open('https://wa.me/' + w + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
 };
 
@@ -180,7 +178,7 @@ function vKas() {
 function vRiwayat() {
   const d = S.d;
   return `<div class="card"><h3>Riwayat iuran saya</h3>${d.riwayatIuran.length ? d.riwayatIuran.map(i => `<div class="li"><div>${esc(fmtP(i.Periode))}<div class="muted">Dibayar ${esc(fmtT(i.TanggalBayar))} · ${esc(i.Metode)}</div></div><b>${rp(i.Jumlah)}</b></div>`).join('') : '<p class="muted">Belum ada pembayaran tercatat.</p>'}</div>
-  <div class="card"><h3>Santunan kematian</h3>${d.santunan.length ? d.santunan.map(x => `<div class="li"><div>${esc(x.Almarhum)}<div class="muted">${esc(fmtT(x.Tanggal))} · ${x.Jiwa} jiwa</div></div><div style="text-align:right"><b>${rp(x.Jumlah)}</b><div>${santBadge(x.Status)}</div></div></div>`).join('') : '<p class="muted">Belum ada tagihan santunan.</p>'}</div>`;
+  <div class="card"><h3>Santunan kematian</h3>${d.santunan.length ? d.santunan.map(x => `<div class="li"><div>${esc(x.Almarhum)}<div class="muted">${esc(fmtT(x.Tanggal))} ·${x.Jiwa} jiwa</div></div><div style="text-align:right"><b>${rp(x.Jumlah)}</b><div>${santBadge(x.Status)}</div></div></div>`).join('') : '<p class="muted">Belum ada tagihan santunan.</p>'}</div>`;
 }
 
 const VIEWS = { home: vHome, kas: vKas, riwayat: vRiwayat };
