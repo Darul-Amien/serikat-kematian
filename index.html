@@ -87,6 +87,7 @@ dialog h3{margin-bottom:4px}
     <button data-tab="dashboard">Dashboard</button>
     <button data-tab="anggota">Anggota</button>
     <button data-tab="iuran">Iuran</button>
+    <button data-tab="santunan">Santunan</button>
     <button data-tab="kas">Kas</button>
     <button data-tab="laporan">Laporan</button>
     <button data-tab="pengaturan">Pengaturan</button>
@@ -103,7 +104,7 @@ dialog h3{margin-bottom:4px}
 const API_URL = 'https://script.google.com/macros/s/AKfycbwbtIzhauLLo_XhctBvnMcBlpPK2Q7G7fSuqOzF-fwZu2OhxeiAbifXKaQDBXXACte1/exec';
 
 /* ============ STATE & HELPER ============ */
-const S = { token: null, data: null, tab: 'dashboard', f: {} };
+const S = { token: null, data: null, tab: 'dashboard', sid: '', f: {} };
 try { S.token = sessionStorage.getItem('tok'); } catch (e) {}
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -180,6 +181,12 @@ const iurBulanan = () => +S.data.pengaturan.IuranBulanan || 0;
 const nama = id => { const a = S.data.anggota.find(x => x.ID === id); return a ? a.Nama : '(dihapus)'; };
 const saldoKas = () => S.data.kas.reduce((s, k) => s + (k.Jenis === 'Masuk' ? k.Jumlah : -k.Jumlah), 0);
 const cmpTgl = (a, b) => (b.Tanggal || '').localeCompare(a.Tanggal || '');
+const KM = () => S.data.kematian || [], TG = () => S.data.tagihan || [];
+const jiwaAktif = () => S.data.anggota.filter(a => a.Status === 'Aktif').reduce((s, a) => s + (+a.Tanggungan || 0), 0);
+const sumK = k => {
+  const tg = TG().filter(t => t.KematianID === k.ID), paid = tg.filter(t => t.TanggalBayar);
+  return { tg, n: tg.length, nPaid: paid.length, target: tg.reduce((s, t) => s + t.Jumlah, 0), terkumpul: paid.reduce((s, t) => s + t.Jumlah, 0) };
+};
 
 function paidSet(id) { return new Set(S.data.iuran.filter(i => i.AnggotaID === id).map(i => i.Periode)); }
 
@@ -225,7 +232,8 @@ function vDash() {
   const last = [...d.kas].sort(cmpTgl).slice(0, 6);
   return `<div class="grid">
     <div class="stat"><small>Saldo kas</small><b>${rp(saldoKas())}</b></div>
-    <div class="stat"><small>Anggota aktif</small><b>${aktif.length}</b></div>
+    <div class="stat"><small>KK aktif</small><b>${aktif.length}</b></div>
+    <div class="stat"><small>Jiwa aktif</small><b>${jiwaAktif()}</b></div>
     <div class="stat"><small>Iuran ${esc(fmtPeriode(thisMonth()))}</small><b>${rp(terkumpul)}</b><small>target ${rp(target)}</small></div>
     <div class="stat"><small>Anggota menunggak</small><b>${tg.length}</b></div>
   </div>
@@ -243,7 +251,7 @@ function vAnggota() {
     <div class="row"><button class="ghost sm" data-act="exportAnggota">Ekspor CSV</button><button class="primary sm" data-act="addAnggota">+ Anggota</button></div></div>
     <div class="row" style="margin:12px 0"><input class="grow" data-f="aq" placeholder="Cari nama / alamat / telepon" value="${esc(S.f.aq)}">
     <select data-f="ast" style="width:auto"><option value="">Semua status</option>${['Aktif', 'Nonaktif', 'Meninggal'].map(s => `<option ${st === s ? 'selected' : ''}>${s}</option>`).join('')}</select></div>
-    ${rows.length ? `<div class="tw"><table><thead><tr><th>Nama</th><th>Telepon</th><th>Masuk</th><th class="n">Tanggungan</th><th>Status</th><th></th></tr></thead><tbody>
+    ${rows.length ? `<div class="tw"><table><thead><tr><th>Nama</th><th>Telepon</th><th>Masuk</th><th class="n">Jiwa</th><th>Status</th><th></th></tr></thead><tbody>
     ${rows.map(a => `<tr><td><b>${esc(a.Nama)}</b><div class="muted">${esc(a.Alamat)}</div></td><td>${esc(a.Telepon)}</td><td>${esc(fmtTgl(a.TanggalMasuk))}</td><td class="n">${esc(a.Tanggungan)}</td><td>${statusBadge(a.Status)}</td>
     <td class="n"><button class="ghost sm" data-act="editAnggota" data-id="${esc(a.ID)}">Ubah</button> <button class="danger sm" data-act="delAnggota" data-id="${esc(a.ID)}">Hapus</button></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada anggota yang cocok.</div>'}</div>`;
 }
@@ -312,13 +320,74 @@ function vSet() {
   const s = S.data.pengaturan;
   return `<div class="card"><h3>Pengaturan</h3>
   <form id="setForm"><label>Nama serikat</label><input name="NamaSerikat" value="${esc(s.NamaSerikat)}" required maxlength="100">
-  <div class="two"><div><label>Iuran per bulan (Rp)</label><input name="IuranBulanan" type="number" min="0" step="1000" value="${esc(s.IuranBulanan)}" required></div>
-  <div><label>Santunan kematian (Rp)</label><input name="SantunanKematian" type="number" min="0" step="1000" value="${esc(s.SantunanKematian)}"></div></div>
+  <div class="two"><div><label>Iuran per bulan per KK (Rp)</label><input name="IuranBulanan" type="number" min="0" step="1000" value="${esc(s.IuranBulanan)}" required></div>
+  <div><label>Santunan per jiwa (Rp)</label><input name="SantunanKematian" type="number" min="0" step="500" value="${esc(s.SantunanKematian)}"></div></div>
+  <label>Persen santunan yang diserahkan ke keluarga (%)</label><input name="PersenSantunan" type="number" min="1" max="100" value="${esc(s.PersenSantunan || 95)}" required>
+  <p class="muted" style="margin:4px 0 0">Sisanya otomatis masuk kas serikat saat santunan dicairkan.</p>
   <div class="row end"><button class="primary" type="submit">Simpan pengaturan</button></div></form></div>
   <div class="card"><h3>Catatan</h3><p class="muted">Password pengurus diubah lewat Apps Script: Project Settings → Script properties → <code>ADMIN_PASSWORD</code>. Data tersimpan di Google Sheet milikmu; buat salinan (File → Make a copy) secara berkala sebagai cadangan.</p></div>`;
 }
 
-const VIEWS = { dashboard: vDash, anggota: vAnggota, iuran: vIuran, kas: vKas, laporan: vLaporan, pengaturan: vSet };
+function waSantunan(a, t, k) {
+  let p = String(a.Telepon || '').replace(/\D/g, ''); if (!p) return '';
+  if (p.startsWith('0')) p = '62' + p.slice(1);
+  return 'https://wa.me/' + p + '?text=' + encodeURIComponent('Yth. ' + a.Nama + ', telah berpulang ' + k.Almarhum + '. Iuran santunan kematian ' + S.data.pengaturan.NamaSerikat + ' untuk ' + t.Jiwa + ' jiwa sebesar ' + rp(t.Jumlah) + ' mohon diserahkan ke pengurus. Terima kasih.');
+}
+
+function vSantunan() {
+  const k0 = S.sid && KM().find(x => x.ID === S.sid);
+  if (k0) return vSantunanDetail(k0);
+  S.sid = '';
+  const set = S.data.pengaturan, rows = [...KM()].sort(cmpTgl);
+  return `<div class="card"><div class="row between"><h3>Santunan kematian (${rows.length})</h3><button class="primary sm" data-act="addKematian">+ Catat kematian</button></div>
+  <p class="muted" style="margin:6px 0 12px">Tarif ${rp(+set.SantunanKematian)} per jiwa, ditagih ke semua KK aktif setiap ada yang meninggal. ${esc(set.PersenSantunan)}% dari yang terkumpul diserahkan ke keluarga, sisanya masuk kas.</p>
+  ${rows.length ? `<div class="tw"><table><thead><tr><th>Tanggal</th><th>Almarhum</th><th>Terkumpul</th><th>Status</th><th></th></tr></thead><tbody>
+  ${rows.map(k => { const m = sumK(k); return `<tr><td>${esc(fmtTgl(k.Tanggal))}</td><td><b>${esc(k.Almarhum)}</b><div class="muted">KK ${esc(nama(k.AnggotaID))}</div></td><td>${rp(m.terkumpul)} <span class="muted">/ ${rp(m.target)} · ${m.nPaid}/${m.n} KK</span></td><td>${k.Status === 'Dicairkan' ? '<span class="badge">Dicairkan</span>' : '<span class="badge off">Berjalan</span>'}</td><td class="n"><button class="ghost sm" data-act="openSantunan" data-id="${esc(k.ID)}">Kelola</button></td></tr>`; }).join('')}</tbody></table></div>` : '<div class="empty">Belum ada kejadian kematian.</div>'}</div>`;
+}
+
+function vSantunanDetail(k) {
+  const m = sumK(k), persen = +k.Persen || 95, done = k.Status === 'Dicairkan';
+  const santunan = done ? k.Santunan : Math.floor(m.terkumpul * persen / 100), bagian = done ? k.BagianKas : m.terkumpul - santunan;
+  const list = [...m.tg].sort((a, b) => (!!a.TanggalBayar - !!b.TanggalBayar) || nama(a.AnggotaID).localeCompare(nama(b.AnggotaID)));
+  return `<div class="row" style="margin-bottom:12px"><button class="ghost sm" data-act="backSantunan">← Kembali</button></div>
+  <div class="grid">
+    <div class="stat"><small>Total tagihan</small><b>${rp(m.target)}</b></div>
+    <div class="stat"><small>Terkumpul (${m.nPaid}/${m.n} KK)</small><b class="in">${rp(m.terkumpul)}</b></div>
+    <div class="stat"><small>Untuk keluarga (${persen}%)</small><b>${rp(santunan)}</b></div>
+    <div class="stat"><small>Masuk kas (${100 - persen}%)</small><b>${rp(bagian)}</b></div>
+  </div>
+  <div class="card"><div class="row between"><div><h3>${esc(k.Almarhum)}</h3><div class="muted">KK ${esc(nama(k.AnggotaID))} · ${esc(fmtTgl(k.Tanggal))} · ${rp(k.TarifPerJiwa)} per jiwa</div></div>
+    <div class="row">${done ? `<span class="badge">Dicairkan ${esc(fmtTgl(k.TanggalCair))}</span>` : `<button class="primary sm" data-act="cairkan" data-id="${esc(k.ID)}">Cairkan santunan</button><button class="danger sm" data-act="delKematian" data-id="${esc(k.ID)}">Hapus</button>`}</div></div>
+  <div class="tw" style="margin-top:12px"><table><thead><tr><th>KK</th><th class="n">Jiwa</th><th class="n">Tagihan</th><th>Status</th><th></th></tr></thead><tbody>
+  ${list.map(t => { const a = S.data.anggota.find(x => x.ID === t.AnggotaID), w = a && !t.TanggalBayar ? waSantunan(a, t, k) : '';
+    return `<tr><td>${esc(nama(t.AnggotaID))}</td><td class="n">${t.Jiwa}</td><td class="n">${rp(t.Jumlah)}</td><td>${t.TanggalBayar ? '<span class="badge">Lunas ' + esc(fmtTgl(t.TanggalBayar)) + '</span>' : '<span class="badge bad">Belum</span>'}</td>
+    <td class="n">${done ? '' : t.TanggalBayar ? `<button class="ghost sm" data-act="batalLunas" data-id="${esc(t.ID)}">Batalkan</button>` : `<button class="ghost sm" data-act="lunas" data-id="${esc(t.ID)}">Tandai lunas</button> ${w ? `<a class="btn sm" target="_blank" rel="noopener" href="${esc(w)}">WhatsApp</a>` : ''}`}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+}
+
+function formKematian() {
+  const aktif = S.data.anggota.filter(a => a.Status === 'Aktif').sort((a, b) => a.Nama.localeCompare(b.Nama));
+  if (!aktif.length) return toast('Belum ada anggota aktif.', true);
+  const tarif = +S.data.pengaturan.SantunanKematian || 0;
+  if (!tarif) return toast('Isi "Santunan per jiwa" di menu Pengaturan dulu.', true);
+  openForm('Catat kematian anggota', `
+    <label>KK (kepala keluarga) dari yang meninggal</label><select name="AnggotaID">${aktif.map(a => opt(a.ID, aktif[0].ID, a.Nama + ' · ' + a.Tanggungan + ' jiwa')).join('')}</select>
+    <label>Nama yang meninggal</label><input name="Almarhum" required maxlength="100">
+    <div class="two"><div><label>Tanggal meninggal</label><input name="Tanggal" type="date" value="${today()}" required></div>
+    <div><label>Catatan</label><input name="Catatan" maxlength="300"></div></div>
+    <p class="muted" style="margin:8px 0 0">Jumlah jiwa di KK tersebut berkurang 1 (jika jadi 0, status KK menjadi Meninggal). Tagihan ${rp(tarif)} × jumlah jiwa dibuat untuk semua KK aktif.</p>`,
+    v => mutate('saveKematian', { row: v }, 'Kematian dicatat, tagihan dibuat'));
+}
+
+function formLunas(id) {
+  const t = TG().find(x => x.ID === id); if (!t) return;
+  openForm('Terima santunan · ' + nama(t.AnggotaID), `
+    <p class="muted" style="margin:4px 0 0">${t.Jiwa} jiwa · ${rp(t.Jumlah)}</p>
+    <div class="two"><div><label>Tanggal bayar</label><input name="TanggalBayar" type="date" value="${today()}" required></div>
+    <div><label>Metode</label><select name="Metode">${['Tunai', 'Transfer'].map(m => opt(m, 'Tunai')).join('')}</select></div></div>`,
+    v => mutate('bayarTagihan', { row: { ID: id, TanggalBayar: v.TanggalBayar, Metode: v.Metode } }, 'Pembayaran dicatat'));
+}
+
+const VIEWS = { dashboard: vDash, anggota: vAnggota, iuran: vIuran, santunan: vSantunan, kas: vKas, laporan: vLaporan, pengaturan: vSet };
 
 function render() {
   if (!S.data) return;
@@ -350,7 +419,7 @@ function openForm(title, html, onSubmit, onReady) {
 const opt = (v, cur, label) => `<option value="${esc(v)}" ${v === cur ? 'selected' : ''}>${esc(label == null ? v : label)}</option>`;
 
 function formAnggota(id) {
-  const a = id ? S.data.anggota.find(x => x.ID === id) : { Nama: '', Alamat: '', Telepon: '', TanggalMasuk: today(), Status: 'Aktif', Tanggungan: 0, Catatan: '' };
+  const a = id ? S.data.anggota.find(x => x.ID === id) : { Nama: '', Alamat: '', Telepon: '', TanggalMasuk: today(), Status: 'Aktif', Tanggungan: 1, Catatan: '' };
   if (!a) return;
   openForm(id ? 'Ubah anggota' : 'Tambah anggota', `
     <label>Nama</label><input name="Nama" value="${esc(a.Nama)}" required maxlength="100">
@@ -358,7 +427,7 @@ function formAnggota(id) {
     <div class="two"><div><label>Telepon / WhatsApp</label><input name="Telepon" value="${esc(a.Telepon)}" inputmode="tel" maxlength="30"></div>
     <div><label>Tanggal masuk</label><input name="TanggalMasuk" type="date" value="${esc(a.TanggalMasuk)}" required></div></div>
     <div class="two"><div><label>Status</label><select name="Status">${['Aktif', 'Nonaktif', 'Meninggal'].map(s => opt(s, a.Status)).join('')}</select></div>
-    <div><label>Jumlah tanggungan</label><input name="Tanggungan" type="number" min="0" value="${esc(a.Tanggungan)}"></div></div>
+    <div><label>Jumlah jiwa dalam KK</label><input name="Tanggungan" type="number" min="1" value="${esc(a.Tanggungan)}" title="Termasuk kepala keluarga"></div></div>
     <label>Catatan</label><textarea name="Catatan" rows="2" maxlength="500">${esc(a.Catatan)}</textarea>`,
     v => mutate('saveAnggota', { row: Object.assign({ ID: id || '' }, v) }));
 }
@@ -416,7 +485,7 @@ function formKas(id, jenis) {
 /* ============ EVENT ============ */
 document.addEventListener('click', ev => {
   const t = ev.target.closest('[data-act],[data-tab]'); if (!t) return;
-  if (t.dataset.tab) { S.tab = t.dataset.tab; render(); window.scrollTo(0, 0); return; }
+  if (t.dataset.tab) { S.tab = t.dataset.tab; S.sid = ''; render(); window.scrollTo(0, 0); return; }
   const id = t.dataset.id;
   switch (t.dataset.act) {
     case 'logout': logout(); break;
@@ -430,6 +499,17 @@ document.addEventListener('click', ev => {
     case 'addKas': formKas(null, t.dataset.jenis); break;
     case 'editKas': formKas(id); break;
     case 'delKas': if (confirm('Hapus transaksi kas ini?')) run(() => mutate('deleteKas', { id }, 'Transaksi dihapus')); break;
+    case 'openSantunan': S.sid = id; render(); window.scrollTo(0, 0); break;
+    case 'backSantunan': S.sid = ''; render(); break;
+    case 'addKematian': formKematian(); break;
+    case 'lunas': formLunas(id); break;
+    case 'batalLunas': run(() => mutate('bayarTagihan', { row: { ID: id, Batal: true } }, 'Pembayaran dibatalkan')); break;
+    case 'cairkan': {
+      const k = KM().find(x => x.ID === id), m = sumK(k), sant = Math.floor(m.terkumpul * (+k.Persen || 95) / 100);
+      if (confirm('Cairkan santunan ' + rp(sant) + ' untuk keluarga ' + k.Almarhum + '?\n' + (m.n - m.nPaid) + ' KK belum bayar. Setelah dicairkan, tagihan tidak dapat diubah.')) run(() => mutate('cairkanSantunan', { id }, 'Santunan dicairkan'));
+      break;
+    }
+    case 'delKematian': if (confirm('Batalkan pencatatan kematian ini? Jumlah jiwa KK dikembalikan dan semua tagihan dihapus.')) { run(() => mutate('deleteKematian', { id }, 'Pencatatan dibatalkan').then(() => { S.sid = ''; render(); })); } break;
     case 'kasSemua': S.f.kasM = ''; render(); break;
     case 'print': window.print(); break;
     case 'exportAnggota':
