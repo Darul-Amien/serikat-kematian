@@ -525,23 +525,33 @@ function vTagih() {
 
 function formTerima(id) {
   const x = tunggakanAll().find(y => y.a.ID === id); if (!x) return;
-  const sant = x.sant.filter(s => bisaBayar(s.k)), iur = iurBulanan();
+  const sant = x.sant.filter(s => bisaBayar(s.k)), iur = iurBulanan(), MAX = 60;
+  const klem = v => Math.min(MAX, Math.max(0, Math.floor(+v || 0)));
+  // Bulan yang dibayar: bulan kosong tertua dulu, lalu lanjut ke bulan depan (bayar di muka).
+  const antri = n => {
+    const paid = paidSet(id), out = [];
+    let [y, m] = (x.a.TanggalMasuk || today()).slice(0, 7).split('-').map(Number);
+    while (out.length < n && y < 2200) { const p = y + '-' + pad(m); if (!paid.has(p)) out.push(p); m++; if (m > 12) { m = 1; y++; } }
+    return out;
+  };
   openForm('Terima bayar · ' + x.a.Nama, `
-    ${x.miss.length ? `<label>Iuran: bayar berapa bulan? (belum bayar ${x.miss.length} bulan)</label><input name="n" type="number" min="0" max="${x.miss.length}" value="${x.miss.length}" inputmode="numeric">` : ''}
+    <label>Iuran: bayar berapa bulan? (belum bayar ${x.miss.length} bulan; boleh bayar di muka, maks. ${MAX} bulan)</label><input name="n" type="number" min="0" max="${MAX}" value="${x.miss.length}" inputmode="numeric">
+    <p class="muted" id="qrange" style="margin:4px 0 0"></p>
     ${sant.map(s => `<label style="display:flex;gap:10px;align-items:center;color:var(--text);font-size:15px"><input type="checkbox" name="s_${esc(s.t.ID)}" checked style="width:auto"> Santunan ${esc(s.k.Almarhum)} ·${rp(s.t.Jumlah)}</label>`).join('')}
     <div class="two"><div><label>Tanggal bayar</label><input name="TanggalBayar" type="date" value="${today()}" required></div>
     <div><label>Metode</label><select name="Metode">${['Tunai', 'Transfer'].map(m => opt(m, 'Tunai')).join('')}</select></div></div>
     <p style="margin:12px 0 0;font-size:17px">Total diterima: <b id="qtot"></b></p>`,
     async v => {
-      const n = x.miss.length ? Math.min(x.miss.length, Math.max(0, Math.floor(+v.n || 0))) : 0;
+      const periodes = antri(klem(v.n));
       const ids = sant.filter(s => v['s_' + s.t.ID]).map(s => s.t.ID);
-      if (!n && !ids.length) throw new Error('Belum ada yang dipilih untuk dibayar.');
-      const j = await api('terimaBayar', { row: { AnggotaID: id, Periodes: x.miss.slice(0, n), Jumlah: iur, TagihanIDs: ids, TanggalBayar: v.TanggalBayar, Metode: v.Metode, Catatan: '' } });
+      if (!periodes.length && !ids.length) throw new Error('Belum ada yang dipilih untuk dibayar.');
+      const j = await api('terimaBayar', { row: { AnggotaID: id, Periodes: periodes, Jumlah: iur, TagihanIDs: ids, TanggalBayar: v.TanggalBayar, Metode: v.Metode, Catatan: '' } });
       S.data = j.data; render(); toast('Pembayaran ' + x.a.Nama + ' tercatat');
     },
     f => {
       const upd = () => {
-        const n = f.elements.n ? Math.min(x.miss.length, Math.max(0, Math.floor(+f.elements.n.value || 0))) : 0;
+        const n = klem(f.elements.n.value), p = antri(n);
+        $('#qrange', f).textContent = p.length ? 'Bulan yang dibayar: ' + fmtPeriode(p[0]) + (p.length > 1 ? ' – ' + fmtPeriode(p[p.length - 1]) : '') : '';
         const tot = n * iur + sant.filter(s => f.elements['s_' + s.t.ID].checked).reduce((z, s) => z + s.t.Jumlah, 0);
         $('#qtot', f).textContent = rp(tot);
       };
