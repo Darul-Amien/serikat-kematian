@@ -4,21 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#1f6f5c">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
 <title>Administrasi Serikat Kematian</title>
 <style>
-:root{--bg:#f3f7f5;--card:#fff;--text:#12281f;--muted:#5f7a6d;--line:#dfeae4;--pri:#0f6b4f;--pri2:#1f9a73;--h1:#07382a;--h2:#0f6b4f;--pri-soft:#e3f3ec;--onpri:#fff;--danger:#c8372d;--ok:#0f8a5f;--warn:#b7791f;--sh:0 2px 14px rgba(7,56,42,.08);--ring:rgba(15,107,79,.25)}
-@media (prefers-color-scheme:dark){:root{--bg:#0a1511;--card:#112019;--text:#e4f1ea;--muted:#8fa89b;--line:#1f3328;--pri:#3dc592;--pri2:#79dfb7;--h1:#06261c;--h2:#0d4a38;--pri-soft:#143327;--onpri:#04241a;--danger:#f2766b;--ok:#4fd8a0;--warn:#e8b04a;--sh:0 2px 14px rgba(0,0,0,.4);--ring:rgba(61,197,146,.3)}}
+:root{--bg:#f3f7f5;--card:#fff;--text:#12281f;--muted:#5f7a6d;--line:#dfeae4;--pri:#0f6b4f;--pri2:#1f9a73;--h1:#07382a;--h2:#0f6b4f;--pri-soft:#e3f3ec;--onpri:#fff;--danger:#c8372d;--ok:#0f8a5f;--sh:0 2px 14px rgba(7,56,42,.08)}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
 h1,h2,h3{margin:0}
-button,input,select,textarea{font:inherit;color:inherit}
-header{background:linear-gradient(135deg,var(--h1),var(--h2));color:#fff;padding:16px 16px 18px;border-radius:0 0 22px 22px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:5;box-shadow:0 4px 16px rgba(7,56,42,.25)}
-header h1{font-size:19px}
-header small{opacity:.85;font-size:12px;display:block}
-.hbtn{background:rgba(255,255,255,.2);border:0;color:#fff;border-radius:12px;width:40px;height:40px;display:grid;place-items:center;cursor:pointer}
+button,input,select{font:inherit;color:inherit}
+header{background:linear-gradient(135deg,var(--h1),var(--h2));color:#fff;padding:16px;border-radius:0 0 22px 22px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
 main{max-width:1100px;margin:0 auto;padding:16px 16px 100px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:16px;box-shadow:var(--sh)}
 .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:16px}
@@ -28,56 +22,45 @@ main{max-width:1100px;margin:0 auto;padding:16px 16px 100px}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .row.end{justify-content:flex-end;margin-top:14px}
 .row.between{justify-content:space-between}
-button.primary,button.ghost,button.danger,a.btn{border-radius:12px;padding:7px 14px;cursor:pointer;border:1px solid var(--pri);text-decoration:none;display:inline-block;font-size:14px}
-button.primary{background:linear-gradient(135deg,var(--pri),var(--pri2));color:var(--onpri);border-color:transparent}
-button.ghost,a.btn{background:transparent;color:var(--pri)}
+button.primary,button.ghost,button.danger{border-radius:12px;padding:8px 16px;cursor:pointer;border:1px solid var(--pri);font-size:14px}
+button.primary{background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;border-color:transparent}
+button.ghost{background:transparent;color:var(--pri)}
 button.danger{background:transparent;color:var(--danger);border-color:var(--danger)}
-input,select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+input{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
 label{display:block;font-size:13px;color:var(--muted);margin:10px 0 3px}
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse}
 th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);white-space:nowrap}
-td.n,th.n{text-align:right;white-space:nowrap}
-.badge{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;background:var(--pri-soft);color:var(--pri)}
+th{font-size:12px;text-transform:uppercase;color:var(--muted)}
+td.n,th.n{text-align:right}
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;background:var(--pri-soft);color:var(--pri)}
 .badge.off{background:var(--line);color:var(--muted)}
 .in{color:var(--ok)}.out{color:var(--danger)}
 .muted{color:var(--muted)}
 .empty{padding:18px;text-align:center;color:var(--muted)}
-.ferr{margin:10px 0 0;padding:8px 10px;border-radius:8px;background:rgba(180,35,24,.12);color:var(--danger);font-size:14px}
+.ferr{margin:10px 0 0;padding:8px;border-radius:8px;background:rgba(180,35,24,.12);color:var(--danger);font-size:14px}
 .ferr:empty{display:none}
 dialog{border:1px solid var(--line);border-radius:14px;padding:18px;width:min(520px,94vw);background:var(--card);color:var(--text)}
 dialog::backdrop{background:rgba(0,0,0,.45)}
-dialog h3{margin-bottom:4px}
 
-/* LOGIN */
-#login{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px;background:linear-gradient(160deg,var(--h1),var(--h2))}
+#login{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;background:linear-gradient(160deg,var(--h1),var(--h2))}
 .login-header{text-align:center;color:#fff;margin-bottom:20px}
-.login-header h2{font-size:22px;font-weight:700}
-.login-header p{opacity:.85;font-size:13px;margin-top:4px}
 .login-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;width:min(680px,100%)}
-.login-card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:var(--sh);display:flex;flex-direction:column;justify-content:space-between}
-.login-card-icon{width:48px;height:48px;border-radius:14px;background:var(--pri-soft);color:var(--pri);display:grid;place-items:center;margin-bottom:12px}
-.login-card h3{font-size:18px;margin-bottom:4px}
-.login-card p{font-size:13px;color:var(--muted);margin:0 0 16px}
+.login-card{background:var(--card);border-radius:20px;padding:20px;box-shadow:var(--sh);display:flex;flex-direction:column;justify-content:space-between}
 
-#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:9px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90vw;z-index:20}
+#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:9px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
 #toast.show{opacity:1}#toast.err{background:var(--danger);color:#fff}
 #bar{position:fixed;top:0;left:0;height:3px;width:100%;background:var(--pri);z-index:30;display:none}
-.hero{background:linear-gradient(135deg,var(--h1),var(--h2));border-radius:24px;padding:22px 20px;color:#fff;margin-bottom:16px;box-shadow:0 8px 22px rgba(7,56,42,.28)}
-.hero small{opacity:.85}.hero b{display:block;font-size:32px;margin:2px 0 8px}
-.hero .hs{display:flex;gap:16px;font-size:13px;opacity:.92}
-#bnav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:var(--card);padding:6px 4px calc(6px + env(safe-area-inset-bottom));box-shadow:0 -6px 24px rgba(7,56,42,.1)}
-#bnav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;color:var(--muted);font-size:11px;padding:5px 0;cursor:pointer}
+.hero{background:linear-gradient(135deg,var(--h1),var(--h2));border-radius:24px;padding:22px;color:#fff;margin-bottom:16px}
+.hero b{display:block;font-size:32px;margin:2px 0 8px}
+#bnav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:var(--card);padding:6px;box-shadow:0 -6px 24px rgba(7,56,42,.1)}
+#bnav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;color:var(--muted);font-size:11px;padding:5px;cursor:pointer}
 #bnav button.on{color:var(--pri);font-weight:600}
-#bnav button.on svg{width:46px;height:30px;padding:3px 11px;background:var(--pri-soft);border-radius:999px}
-#bnav svg{width:24px;height:24px}
 </style>
 </head>
 <body>
 <div id="bar"></div>
 
-<!-- LOGIN -->
 <section id="login" hidden>
   <div class="login-header">
     <h2>Serikat Kematian</h2>
@@ -86,32 +69,25 @@ dialog h3{margin-bottom:4px}
   <div class="login-cards">
     <div class="login-card">
       <div>
-        <div class="login-card-icon">
-          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        </div>
         <h3>Portal Pengurus</h3>
-        <p>Akses pengelolaan data anggota, pencatatan iuran, kas, dan santunan.</p>
+        <p class="muted">Akses pengelolaan data anggota, iuran, kas, dan santunan.</p>
       </div>
-      <button class="primary" data-act="openLoginAdmin">Masuk Pengurus</button>
+      <button class="primary" data-act="openLoginAdmin" style="margin-top:16px">Masuk Pengurus</button>
     </div>
     <div class="login-card">
       <div>
-        <div class="login-card-icon">
-          <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-        </div>
         <h3>Portal Peserta</h3>
-        <p>Cek status keanggotaan, histori pembayaran iuran, serta informasi santunan.</p>
+        <p class="muted">Cek status keanggotaan dan histori pembayaran iuran.</p>
       </div>
-      <button class="ghost" data-act="openLoginPeserta">Masuk Peserta</button>
+      <button class="ghost" data-act="openLoginPeserta" style="margin-top:16px">Masuk Peserta</button>
     </div>
   </div>
 </section>
 
-<!-- MAIN APP -->
 <div id="app" hidden>
   <header>
-    <div><small id="roleLbl">Pengurus</small><h1 id="brand">Serikat Kematian</h1></div>
-    <button class="hbtn" id="logoutBtn" data-act="logout" aria-label="Keluar"></button>
+    <div><small id="roleLbl">Pengurus</small><h1 id="brand" style="font-size:18px">Serikat Kematian</h1></div>
+    <button class="ghost" id="logoutBtn" data-act="logout" style="color:#fff;border-color:rgba(255,255,255,.3)">Keluar</button>
   </header>
   <main id="view"></main>
   <div id="bnav"></div>
@@ -123,11 +99,7 @@ dialog h3{margin-bottom:4px}
 <script>
 const API_URL = 'https://script.google.com/macros/s/AKfycbwbtIzhauLLo_XhctBvnMcBlpPK2Q7G7fSuqOzF-fwZu2OhxeiAbifXKaQDBXXACte1/exec';
 
-const S = { token: null, role: 'admin', data: null, tab: 'dashboard' };
-try { 
-  S.token = sessionStorage.getItem('tok'); 
-  S.role = sessionStorage.getItem('role') || 'admin';
-} catch (e) {}
+const S = { token: sessionStorage.getItem('tok'), role: sessionStorage.getItem('role') || 'admin', data: null, tab: 'dashboard' };
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -139,34 +111,16 @@ const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', '
 const fmtPeriode = p => { if (!p) return '-'; const arr = String(p).split('-'); return BULAN[+arr[1] - 1] + ' ' + arr[0]; };
 const fmtTgl = t => { if (!t) return '-'; const arr = String(t).split('T')[0].split('-'); return +arr[2] + ' ' + BULAN[+arr[1] - 1].slice(0, 3) + ' ' + arr[0]; };
 
-function monthRange(from, to) {
-  const out = []; let arrF = from.split('-').map(Number); let y = arrF[0], m = arrF[1]; 
-  let arrT = to.split('-').map(Number); let ty = arrT[0], tm = arrT[1];
-  while ((y < ty || (y === ty && m <= tm)) && out.length < 600) { out.push(y + '-' + pad(m)); m++; if (m > 12) { m = 1; y++; } }
-  return out;
-}
-
 function toast(msg, err) {
   const t = $('#toast'); t.textContent = msg; t.className = 'show' + (err ? ' err' : '');
   clearTimeout(toast.t); toast.t = setTimeout(() => t.className = '', err ? 5000 : 2200);
 }
 const bar = on => { $('#bar').style.display = on ? 'block' : 'none'; };
 
-const ICONS = {
-  home: '<path d="M3 11l9-8 9 8v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/>',
-  wallet: '<rect x="2" y="6" width="20" height="13" rx="3"/><circle cx="12" cy="12.5" r="2.5"/><path d="M6 6V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"/>',
-  users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8M18 14.3c2.2.7 3.5 2.6 3.5 5.7"/>',
-  heart: '<path d="M12 21s-7.5-4.6-9.5-9.2C1.2 8.6 3 5 6.4 5c2 0 3.5 1 5.6 3 2.1-2 3.6-3 5.6-3 3.4 0 5.2 3.6 3.9 6.8C19.5 16.4 12 21 12 21z"/>',
-  book: '<path d="M4 4h12a3 3 0 0 1 3 3v13H7a3 3 0 0 1-3-3z"/><path d="M8 9h7M8 13h7"/>',
-  logout: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>'
-};
-const ic = (n, sz) => '<svg viewBox="0 0 24 24" width="' + (sz || 24) + '" height="' + (sz || 24) + '" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' + ICONS[n] + '</svg>';
-const NAVS = [['dashboard', 'Beranda', 'home'], ['tagih', 'Tagih', 'wallet'], ['anggota', 'Anggota', 'users'], ['santunan', 'Santunan', 'heart'], ['kas', 'Kas', 'book']];
-
-$('#logoutBtn').innerHTML = ic('logout', 20);
+const NAVS = [['dashboard', 'Beranda'], ['tagih', 'Tagih'], ['anggota', 'Anggota'], ['santunan', 'Santunan'], ['kas', 'Kas']];
 
 async function api(action, payload) {
-  if (!API_URL || API_URL.startsWith('GANTI')) throw new Error('API_URL belum diisi.');
+  if (!API_URL) throw new Error('API_URL belum diisi.');
   let res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(Object.assign({ action, token: S.token }, payload || {})) });
   let j = await res.json();
   if (!j.ok) { if (j.code === 'AUTH') logout(); throw new Error(j.error || 'Terjadi kesalahan'); }
@@ -213,8 +167,8 @@ document.addEventListener('click', e => {
   if (act === 'logout') logout();
 });
 
-$('#bnav').addEventListener('click', e => {
-  const btn = e.target.closest('button[data-tab]');
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#bnav button[data-tab]');
   if (!btn) return;
   S.tab = btn.dataset.tab;
   document.querySelectorAll('#bnav button').forEach(b => b.classList.remove('on'));
@@ -222,11 +176,13 @@ $('#bnav').addEventListener('click', e => {
   render();
 });
 
-function showLogin() { $('#app').hidden = true; $('#login').hidden = false; }
+function showLogin() { 
+  sessionStorage.clear();
+  $('#app').hidden = true; 
+  $('#login').hidden = false; 
+}
+
 function logout() {
-  S.token = null; S.data = null;
-  sessionStorage.removeItem('tok'); sessionStorage.removeItem('role');
-  const d = $('#dlg'); if (d.open) d.close();
   showLogin();
 }
 
@@ -236,101 +192,43 @@ async function boot() {
     if (S.role === 'admin') {
       const j = await api('getAll'); 
       S.data = j.data; S.tab = 'dashboard';
-      $('#bnav').innerHTML = NAVS.map(n => '<button data-tab="' + n[0] + '" class="' + (S.tab === n[0] ? 'on' : '') + '">' + ic(n[2]) + '<span>' + n[1] + '</span></button>').join('');
+      $('#bnav').innerHTML = NAVS.map(n => '<button data-tab="' + n[0] + '" class="' + (S.tab === n[0] ? 'on' : '') + '"><span>' + n[1] + '</span></button>').join('');
     } else {
       const j = await api('memberGet');
       S.data = j.data; S.tab = 'pesertaNav';
-      $('#bnav').innerHTML = '<button data-tab="pesertaNav" class="on">' + ic('users') + '<span>Status Saya</span></button>';
+      $('#bnav').innerHTML = '<button data-tab="pesertaNav" class="on"><span>Status Saya</span></button>';
     }
     $('#login').hidden = true; $('#app').hidden = false;
     $('#roleLbl').textContent = S.role === 'admin' ? 'Pengurus' : 'Peserta';
     render();
   } catch (e) {
     toast(e.message, true);
-    logout();
+    showLogin();
   } finally { bar(false); }
 }
 
-const iurBulanan = () => (S.data && S.data.pengaturan && S.data.pengaturan.IuranBulanan) ? +S.data.pengaturan.IuranBulanan : 0;
+const iurBulanan = () => (S.data && S.data.pengaturan) ? +S.data.pengaturan.IuranBulanan : 0;
 const saldoKas = () => (S.data && S.data.kas) ? S.data.kas.reduce((s, k) => s + (k.Jenis === 'Masuk' ? k.Jumlah : -k.Jumlah), 0) : 0;
-const cmpTgl = (a, b) => (b.Tanggal || '').localeCompare(a.Tanggal || '');
-const paidSet = id => new Set((S.data && S.data.iuran ? S.data.iuran : []).filter(i => i.AnggotaID === id).map(i => i.Periode));
-
-function tunggakan() {
-  if (!S.data || !S.data.anggota) return [];
-  const nowM = thisMonth(), iur = iurBulanan();
-  return S.data.anggota.filter(a => a.Status === 'Aktif').map(a => {
-    const start = (a.TanggalMasuk || today()).slice(0, 7);
-    const paid = paidSet(a.ID);
-    const miss = start <= nowM ? monthRange(start, nowM).filter(p => !paid.has(p)) : [];
-    return { a, miss, total: miss.length * iur };
-  }).filter(x => x.miss.length);
-}
 
 function render() {
   const v = $('#view');
-  if (S.role === 'peserta') { v.innerHTML = vPeserta(); return; }
-  if (S.tab === 'dashboard') v.innerHTML = vDash();
-  else if (S.tab === 'tagih') v.innerHTML = vTagih();
-  else if (S.tab === 'anggota') v.innerHTML = vAnggota();
-  else if (S.tab === 'santunan') v.innerHTML = vSantunan();
-  else if (S.tab === 'kas') v.innerHTML = vKas();
-  else v.innerHTML = vDash();
+  if (!S.data) return;
+  if (S.role === 'peserta') { v.innerHTML = `<div class="card"><h3>Halo, ${esc(S.data.nama)}</h3><p class="muted">Status: <b>${esc(S.data.status)}</b></p></div>`; return; }
+  
+  if (S.tab === 'dashboard') {
+    v.innerHTML = `<div class="hero"><small>Saldo Kas</small><b>${rp(saldoKas())}</b></div><div class="card"><h3>Dashboard Pengurus Aktif</h3><p class="muted">Total Anggota: ${S.data.anggota.length}</p></div>`;
+  } else if (S.tab === 'anggota') {
+    v.innerHTML = `<div class="card"><h3>Daftar Anggota</h3><table><thead><tr><th>Nama</th><th>Status</th></tr></thead><tbody>${S.data.anggota.map(a => `<tr><td>${esc(a.Nama)}</td><td>${esc(a.Status)}</td></tr>`).join('')}</tbody></table></div>`;
+  } else {
+    v.innerHTML = `<div class="card"><h3>Menu ${S.tab}</h3><p class="muted">Fitur aktif.</p></div>`;
+  }
 }
 
-function vDash() {
-  const d = S.data;
-  const aktif = d.anggota.filter(a => a.Status === 'Aktif');
-  const terkumpul = d.iuran.filter(i => i.Periode === thisMonth()).reduce((s, i) => s + i.Jumlah, 0);
-  const target = aktif.length * iurBulanan();
-  const tg = tunggakan().sort((x, y) => y.miss.length - x.miss.length);
-  const last = [...d.kas].sort(cmpTgl).slice(0, 6);
-  return `<div class="hero"><small>Saldo kas</small><b>${rp(saldoKas())}</b><div class="hs"><span>${aktif.length} KK aktif</span></div></div>
-  <div class="grid">
-    <div class="stat"><small>Iuran ${esc(fmtPeriode(thisMonth()))}</small><b>${rp(terkumpul)}</b><small>target ${rp(target)}</small></div>
-    <div class="stat"><small>Anggota menunggak</small><b>${tg.length}</b></div>
-  </div>
-  <div class="card"><h3>Transaksi kas terakhir</h3>
-  ${last.length ? `<div class="tw"><table><tbody>${last.map(k => `<tr><td>${esc(fmtTgl(k.Tanggal))}</td><td>${esc(k.Keterangan || k.Kategori)}</td><td class="n ${k.Jenis === 'Masuk' ? 'in' : 'out'}">${k.Jenis === 'Masuk' ? '+' : '−'}${rp(k.Jumlah)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada transaksi.</div>'}</div>`;
+if (S.token) {
+  boot();
+} else {
+  showLogin();
 }
-
-function vPeserta() {
-  const d = S.data;
-  if (!d) return '<div class="card"><p class="muted">Memuat data...</p></div>';
-  return `<div class="card"><h3>Halo, ${esc(d.nama)}</h3><p class="muted">No. Induk: ${esc(d.noInduk || '-')} | Status: <b>${esc(d.status)}</b> | Tanggungan: ${d.jiwa} Jiwa</p></div>
-  <div class="grid"><div class="stat"><small>Total Tunggakan</small><b class="out">${rp(d.tunggakan.total)}</b></div><div class="stat"><small>Saldo Kas Organisasi</small><b>${rp(d.kas.saldo)}</b></div></div>
-  <div class="card"><h3>Riwayat Iuran Terakhir</h3>
-  ${d.riwayatIuran.length ? `<div class="tw"><table><thead><tr><th>Periode</th><th>Tanggal Bayar</th><th class="n">Jumlah</th></tr></thead><tbody>${d.riwayatIuran.map(i => `<tr><td>${esc(fmtPeriode(i.Periode))}</td><td>${esc(fmtTgl(i.TanggalBayar))}</td><td class="n">${rp(i.Jumlah)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada catatan iuran.</div>'}</div>`;
-}
-
-function vTagih() {
-  const tg = tunggakan().sort((x, y) => y.miss.length - x.miss.length);
-  return `<div class="card"><h3>Penagihan Iuran (${tg.length} Anggota Menunggak)</h3>
-  ${tg.length ? `<div class="tw"><table><thead><tr><th>Nama</th><th>Tunggakan</th><th class="n">Total</th></tr></thead><tbody>${tg.map(x => `<tr><td><b>${esc(x.a.Nama)}</b><br><small class="muted">${esc(x.a.Telepon || '-')}</small></td><td>${x.miss.length} bulan</td><td class="n">${rp(x.total)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Semua anggota telah melunasi iuran.</div>'}</div>`;
-}
-
-function vAnggota() {
-  const list = S.data.anggota;
-  return `<div class="card"><h3>Daftar Anggota (${list.length})</h3>
-  <div class="tw"><table><thead><tr><th>Nama / No. Induk</th><th>Tanggungan</th><th>Status</th></tr></thead><tbody>
-  ${list.map(a => `<tr><td><b>${esc(a.Nama)}</b><br><small class="muted">${esc(a.NoInduk \vert{}\vert{} '-')}</small></td><td>${a.Tanggungan} jiwa</td><td><span class="badge ${a.Status === 'Aktif' ? '' : 'off'}">${esc(a.Status)}</span></td></tr>`).join('')}
-  </tbody></table></div></div>`;
-}
-
-function vSantunan() {
-  const list = S.data.kematian;
-  return `<div class="card"><h3>Riwayat Santunan Kematian</h3>
-  ${list.length ? `<div class="tw"><table><thead><tr><th>Tanggal</th><th>Almarhum / Keluarga</th><th>Status</th></tr></thead><tbody>${list.map(k => `<tr><td>${esc(fmtTgl(k.Tanggal))}</td><td><b>${esc(k.Almarhum)}</b></td><td><span class="badge">${esc(k.Status)}</span></td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada data kematian.</div>'}</div>`;
-}
-
-function vKas() {
-  const list = [...S.data.kas].sort(cmpTgl);
-  return `<div class="card"><h3>Buku Kas</h3>
-  ${list.length ? `<div class="tw"><table><thead><tr><th>Tanggal</th><th>Keterangan</th><th class="n">Jumlah</th></tr></thead><tbody>${list.map(k => `<tr><td>${esc(fmtTgl(k.Tanggal))}</td><td>${esc(k.Keterangan || k.Kategori)}</td><td class="n ${k.Jenis === 'Masuk' ? 'in' : 'out'}">${k.Jenis === 'Masuk' ? '+' : '−'}${rp(k.Jumlah)}</td></tr>`).join('')}</tbody></table></div>` : '<div class="empty">Belum ada mutasi kas.</div>'}</div>`;
-}
-
-if (S.token) boot();
-else showLogin();
 </script>
 </body>
 </html>
