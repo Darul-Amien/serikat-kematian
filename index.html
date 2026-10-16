@@ -26,7 +26,6 @@ main{max-width:1100px;margin:0 auto;padding:20px 16px 110px}
 .row.between{justify-content:space-between}
 button.primary,button.ghost,button.danger{border-radius:12px;padding:9px 18px;cursor:pointer;border:1px solid var(--pri);font-size:14px;font-weight:600;transition:all .2s}
 button.primary{background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;border-color:transparent;box-shadow:0 4px 12px rgba(15,107,79,.25)}
-button.primary:hover{opacity:.9}
 button.ghost{background:transparent;color:var(--pri)}
 button.danger{background:transparent;color:var(--danger);border-color:var(--danger)}
 input,select{width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-size:14px}
@@ -129,7 +128,6 @@ function toast(msg, err) {
 }
 const bar = on => { $('#bar').style.display = on ? 'block' : 'none'; };
 
-// Ikon SVG Profesional untuk Bottom Navigasi
 const ICONS = {
   dashboard: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
   tagih: '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>',
@@ -161,7 +159,7 @@ document.addEventListener('click', e => {
   
   if (act === 'openLoginAdmin') {
     const d = $('#dlg');
-    d.innerHTML = `<h3>Login Pengurus</h3><p class="muted" style="margin:4px 0 14px">Masukkan password pengurus</p><form id="formAdmin"><label>Password</label><input id="pwAdmin" type="password" required><p class="ferr" id="errAdmin"></p><div class="row end" style="margin-top:16px"><button type="button" class="ghost" onclick="$('#dlg').close()">Batal</button><button class="primary" type="submit">Masuk</button></div></form>`;
+    d.innerHTML = '<h3>Login Pengurus</h3><p class="muted" style="margin:4px 0 14px">Masukkan password pengurus</p><form id="formAdmin"><label>Password</label><input id="pwAdmin" type="password" required><p class="ferr" id="errAdmin"></p><div class="row end" style="margin-top:16px"><button type="button" class="ghost" onclick="$(\'#dlg\').close()">Batal</button><button class="primary" type="submit">Masuk</button></div></form>';
     d.showModal();
     $('#pwAdmin').focus();
     $('#formAdmin').onsubmit = async ev => {
@@ -177,7 +175,7 @@ document.addEventListener('click', e => {
   
   if (act === 'openLoginPeserta') {
     const d = $('#dlg');
-    d.innerHTML = `<h3>Login Peserta</h3><p class="muted" style="margin:4px 0 14px">Masukkan No. Induk dan PIN Anda</p><form id="formPeserta"><label>No. Induk / No. HP</label><input id="noPeserta" type="text" required><label>PIN (6 Digit)</label><input id="pinPeserta" type="password" required><p class="ferr" id="errPeserta"></p><div class="row end" style="margin-top:16px"><button type="button" class="ghost" onclick="$('#dlg').close()">Batal</button><button class="primary" type="submit">Masuk Portal</button></div></form>`;
+    d.innerHTML = '<h3>Login Peserta</h3><p class="muted" style="margin:4px 0 14px">Masukkan No. Induk dan PIN Anda</p><form id="formPeserta"><label>No. Induk / No. HP</label><input id="noPeserta" type="text" required><label>PIN (6 Digit)</label><input id="pinPeserta" type="password" required><p class="ferr" id="errPeserta"></p><div class="row end" style="margin-top:16px"><button type="button" class="ghost" onclick="$(\'#dlg\').close()">Batal</button><button class="primary" type="submit">Masuk Portal</button></div></form>';
     d.showModal();
     $('#noPeserta').focus();
     $('#formPeserta').onsubmit = async ev => {
@@ -216,11 +214,11 @@ async function boot() {
     if (S.role === 'admin') {
       const j = await api('getAll'); 
       S.data = j.data; S.tab = 'dashboard';
-      $('#bnav').innerHTML = NAVS.map(n => `<button data-tab="${n[0]}" class="${S.tab === n[0] ? 'on' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${n[2]}</svg><span>${n[1]}</span></button>`).join('');
+      $('#bnav').innerHTML = NAVS.map(n => '<button data-tab="' + n[0] + '" class="' + (S.tab === n[0] ? 'on' : '') + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">' + n[2] + '</svg><span>' + n[1] + '</span></button>').join('');
     } else {
       const j = await api('memberGet');
       S.data = j.data; S.tab = 'pesertaNav';
-      $('#bnav').innerHTML = `<button data-tab="pesertaNav" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${ICONS.anggota}</svg><span>Status Saya</span></button>`;
+      $('#bnav').innerHTML = '<button data-tab="pesertaNav" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">' + ICONS.anggota + '</svg><span>Status Saya</span></button>';
     }
     $('#login').hidden = true; $('#app').hidden = false;
     $('#roleLbl').textContent = S.role === 'admin' ? 'Pengurus' : 'Peserta';
@@ -239,27 +237,27 @@ function render() {
   if (!S.data) return;
   
   if (S.role === 'peserta') { 
-    v.innerHTML = `<div class="card"><h3>Halo, ${esc(S.data.nama)}</h3><p class="muted">No. Induk: ${esc(S.data.noInduk)} | Status: <span class="badge">${esc(S.data.status)}</span></p></div>
-    <div class="grid"><div class="stat"><small>Total Tunggakan</small><b class="out">${rp(S.data.tunggakan.total)}</b></div><div class="stat"><small>Saldo Kas Organisasi</small><b>${rp(S.data.kas.saldo)}</b></div></div>`; 
+    v.innerHTML = '<div class="card"><h3>Halo, ' + esc(S.data.nama) + '</h3><p class="muted">No. Induk: ' + esc(S.data.noInduk) + ' | Status: <span class="badge">' + esc(S.data.status) + '</span></p></div>' +
+                  '<div class="grid"><div class="stat"><small>Total Tunggakan</small><b class="out">' + rp(S.data.tunggakan.total) + '</b></div><div class="stat"><small>Saldo Kas Organisasi</small><b>' + rp(S.data.kas.saldo) + '</b></div></div>'; 
     return; 
   }
   
   if (S.tab === 'dashboard') {
     const aktif = S.data.anggota.filter(a => a.Status === 'Aktif').length;
     const terkumpul = S.data.iuran.filter(i => i.Periode === thisMonth()).reduce((s, i) => s + i.Jumlah, 0);
-    v.innerHTML = `<div class="hero"><small>Saldo Kas Organisasi</small><b>${rp(saldoKas())}</b><div style="margin-top:8px;font-size:13px;opacity:.9"><b>${aktif}</b> KK Aktif &bull; Iuran Terkumpul Bulan Ini: <b>${rp(terkumpul)}</b></div></div>
-    <div class="card"><h3>Ringkasan Sistem</h3><p class="muted" style="margin-top:6px">Gunakan menu navigasi di bawah untuk mengelola data anggota, pengecekan tagihan, dan laporan keuangan kas secara real-time.</p></div>`;
+    v.innerHTML = '<div class="hero"><small>Saldo Kas Organisasi</small><b>' + rp(saldoKas()) + '</b><div style="margin-top:8px;font-size:13px;opacity:.9"><b>' + aktif + '</b> KK Aktif &bull; Iuran Terkumpul Bulan Ini: <b>' + rp(terkumpul) + '</b></div></div>' +
+                  '<div class="card"><h3>Ringkasan Sistem</h3><p class="muted" style="margin-top:6px">Gunakan menu navigasi di bawah untuk mengelola data anggota, pengecekan tagihan, dan laporan keuangan kas secara real-time.</p></div>';
   } else if (S.tab === 'anggota') {
-    v.innerHTML = `<div class="card"><div class="row between" style="margin-bottom:12px"><h3>Daftar Anggota (${S.data.anggota.length})</h3></div>
-    <div class="tw"><table><thead><tr><th>Nama / No. Induk</th><th>Tanggungan</th><th>Status</th></tr></thead><tbody>
-    ${S.data.anggota.map(a => `<tr><td><b>${esc(a.Nama)}</b><br><small class="muted">${esc(a.NoInduk \vert{}\vert{} '-')}</small></td><td>${a.Tanggungan} Jiwa</td><td><span class="badge ${a.Status === 'Aktif' ? '' : 'off'}">${esc(a.Status)}</span></td></tr>`).join('')}
-    </tbody></table></div></div>`;
+    v.innerHTML = '<div class="card"><div class="row between" style="margin-bottom:12px"><h3>Daftar Anggota (' + S.data.anggota.length + ')</h3></div>' +
+                  '<div class="tw"><table><thead><tr><th>Nama / No. Induk</th><th>Tanggungan</th><th>Status</th></tr></thead><tbody>' +
+                  S.data.anggota.map(a => '<tr><td><b>' + esc(a.Nama) + '</b><br><small class="muted">' + esc(a.NoInduk || '-') + '</small></td><td>' + a.Tanggungan + ' Jiwa</td><td><span class="badge ' + (a.Status === 'Aktif' ? '' : 'off') + '">' + esc(a.Status) + '</span></td></tr>').join('') +
+                  '</tbody></table></div></div>';
   } else if (S.tab === 'tagih') {
-    v.innerHTML = `<div class="card"><h3>Modul Penagihan</h3><p class="muted" style="margin-top:6px">Fitur pencatatan dan monitoring iuran bulanan warga terhubung langsung dengan Google Sheets.</p></div>`;
+    v.innerHTML = '<div class="card"><h3>Modul Penagihan</h3><p class="muted" style="margin-top:6px">Fitur pencatatan dan monitoring iuran bulanan warga terhubung langsung dengan Google Sheets.</p></div>';
   } else if (S.tab === 'santunan') {
-    v.innerHTML = `<div class="card"><h3>Riwayat Santunan Kematian</h3><p class="muted" style="margin-top:6px">Total data klaim tercatat: <b>${S.data.kematian.length}</b> kejadian.</p></div>`;
-  } else if (S.tab === 'kas') {
-    v.innerHTML = `<div class="card"><h3>Buku Kas Keuangan</h3><p class="muted" style="margin-top:6px">Total mutasi transaksi tercatat: <b>${S.data.kas.length}</b> transaksi.</p></div>`;
+    v.innerHTML = '<div class="card"><h3>Riwayat Santunan Kematian</h3><p class="muted" style="margin-top:6px">Total data klaim tercatat: <b>' + S.data.kematian.length + '</b> kejadian.</p></div>';
+  } else if (S.tab::toString() === 'kas' || S.tab === 'kas') {
+    v.innerHTML = '<div class="card"><h3>Buku Kas Keuangan</h3><p class="muted" style="margin-top:6px">Total mutasi transaksi tercatat: <b>' + S.data.kas.length + '</b> transaksi.</p></div>';
   }
 }
 
