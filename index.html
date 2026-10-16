@@ -3,59 +3,71 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#1f6f5c">
+<meta name="theme-color" content="#0f6b4f">
 <title>Administrasi Serikat Kematian</title>
 <style>
-:root{--bg:#f3f7f5;--card:#fff;--text:#12281f;--muted:#5f7a6d;--line:#dfeae4;--pri:#0f6b4f;--pri2:#1f9a73;--h1:#07382a;--h2:#0f6b4f;--pri-soft:#e3f3ec;--onpri:#fff;--danger:#c8372d;--ok:#0f8a5f;--sh:0 2px 14px rgba(7,56,42,.08)}
+:root{--bg:#f4f7f6;--card:#fff;--text:#12281f;--muted:#5f7a6d;--line:#e2ece7;--pri:#0f6b4f;--pri2:#1f9a73;--h1:#07382a;--h2:#0f6b4f;--pri-soft:#e3f3ec;--onpri:#fff;--danger:#c8372d;--ok:#0f8a5f;--sh:0 4px 20px rgba(7,56,42,.06)}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 body{margin:0;font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
 h1,h2,h3{margin:0}
-button,input,select{font:inherit;color:inherit}
-header{background:linear-gradient(135deg,var(--h1),var(--h2));color:#fff;padding:16px;border-radius:0 0 22px 22px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
-main{max-width:1100px;margin:0 auto;padding:16px 16px 100px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:16px;box-shadow:var(--sh)}
-.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));margin-bottom:16px}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:var(--sh)}
-.stat small{color:var(--muted)}
-.stat b{display:block;font-size:22px;margin-top:2px}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.row.end{justify-content:flex-end;margin-top:14px}
+button,input,select,textarea{font:inherit;color:inherit}
+header{background:linear-gradient(135deg,var(--h1),var(--h2));color:#fff;padding:18px 20px;border-radius:0 0 24px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5;box-shadow:0 4px 20px rgba(7,56,42,.15)}
+header h1{font-size:18px;font-weight:700}
+header small{opacity:.85;font-size:11px;text-transform:uppercase;letter-spacing:.05em;display:block}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 110px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;margin-bottom:16px;box-shadow:var(--sh)}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));margin-bottom:16px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--sh)}
+.stat small{color:var(--muted);font-weight:500}
+.stat b{display:block;font-size:24px;margin-top:4px;color:var(--h1)}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row.end{justify-content:flex-end;margin-top:16px}
 .row.between{justify-content:space-between}
-button.primary,button.ghost,button.danger{border-radius:12px;padding:8px 16px;cursor:pointer;border:1px solid var(--pri);font-size:14px}
-button.primary{background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;border-color:transparent}
+button.primary,button.ghost,button.danger{border-radius:12px;padding:9px 18px;cursor:pointer;border:1px solid var(--pri);font-size:14px;font-weight:600;transition:all .2s}
+button.primary{background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;border-color:transparent;box-shadow:0 4px 12px rgba(15,107,79,.25)}
+button.primary:hover{opacity:.9}
 button.ghost{background:transparent;color:var(--pri)}
 button.danger{background:transparent;color:var(--danger);border-color:var(--danger)}
-input{width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card)}
-label{display:block;font-size:13px;color:var(--muted);margin:10px 0 3px}
+input,select{width:100%;padding:10px 14px;border:1px solid var(--line);border-radius:10px;background:var(--card);font-size:14px}
+input:focus,select:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px rgba(15,107,79,.15)}
+label{display:block;font-size:13px;color:var(--muted);margin:12px 0 4px;font-weight:500}
 .tw{overflow-x:auto}
 table{width:100%;border-collapse:collapse}
-th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-th{font-size:12px;text-transform:uppercase;color:var(--muted)}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;font-size:14px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--pri-soft)}
 td.n,th.n{text-align:right}
-.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;background:var(--pri-soft);color:var(--pri)}
+.badge{display:inline-block;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:500;background:var(--pri-soft);color:var(--pri)}
 .badge.off{background:var(--line);color:var(--muted)}
-.in{color:var(--ok)}.out{color:var(--danger)}
+.in{color:var(--ok);font-weight:600}.out{color:var(--danger);font-weight:600}
 .muted{color:var(--muted)}
-.empty{padding:18px;text-align:center;color:var(--muted)}
-.ferr{margin:10px 0 0;padding:8px;border-radius:8px;background:rgba(180,35,24,.12);color:var(--danger);font-size:14px}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+.ferr{margin:10px 0 0;padding:10px;border-radius:8px;background:rgba(200,55,45,.1);color:var(--danger);font-size:13px}
 .ferr:empty{display:none}
-dialog{border:1px solid var(--line);border-radius:14px;padding:18px;width:min(520px,94vw);background:var(--card);color:var(--text)}
-dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog{border:none;border-radius:20px;padding:24px;width:min(500px,92vw);background:var(--card);color:var(--text);box-shadow:0 10px 40px rgba(0,0,0,.2)}
+dialog::backdrop{background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
 
-#login{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;background:linear-gradient(160deg,var(--h1),var(--h2))}
-.login-header{text-align:center;color:#fff;margin-bottom:20px}
-.login-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;width:min(680px,100%)}
-.login-card{background:var(--card);border-radius:20px;padding:20px;box-shadow:var(--sh);display:flex;flex-direction:column;justify-content:space-between}
+/* LOGIN */
+#login{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;background:linear-gradient(150deg,var(--h1),var(--h2))}
+.login-header{text-align:center;color:#fff;margin-bottom:24px}
+.login-header h2{font-size:26px;font-weight:700}
+.login-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;width:min(640px,100%)}
+.login-card{background:var(--card);border-radius:22px;padding:24px;box-shadow:0 10px 30px rgba(0,0,0,.2);display:flex;flex-direction:column;justify-content:space-between}
 
-#toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:9px 16px;border-radius:10px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+#toast{position:fixed;left:50%;bottom:95px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 18px;border-radius:12px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:20;font-weight:500;box-shadow:0 5px 15px rgba(0,0,0,.2)}
 #toast.show{opacity:1}#toast.err{background:var(--danger);color:#fff}
-#bar{position:fixed;top:0;left:0;height:3px;width:100%;background:var(--pri);z-index:30;display:none}
-.hero{background:linear-gradient(135deg,var(--h1),var(--h2));border-radius:24px;padding:22px;color:#fff;margin-bottom:16px}
-.hero b{display:block;font-size:32px;margin:2px 0 8px}
-#bnav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:var(--card);padding:6px;box-shadow:0 -6px 24px rgba(7,56,42,.1)}
-#bnav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;background:none;border:0;color:var(--muted);font-size:11px;padding:5px;cursor:pointer}
-#bnav button.on{color:var(--pri);font-weight:600}
+#bar{position:fixed;top:0;left:0;height:3px;width:100%;background:var(--pri2);z-index:30;display:none}
+
+.hero{background:linear-gradient(135deg,var(--h1),var(--h2));border-radius:22px;padding:24px;color:#fff;margin-bottom:16px;box-shadow:0 8px 24px rgba(7,56,42,.2)}
+.hero small{opacity:.8;font-size:13px}
+.hero b{display:block;font-size:32px;margin:4px 0;letter-spacing:-.02em}
+
+/* BOTTOM NAVIGATION STYLING */
+#bnav{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:var(--card);padding:8px 6px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -6px 24px rgba(7,56,42,.08);border-top:1px solid var(--line)}
+#bnav button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;color:var(--muted);font-size:11px;font-weight:500;padding:6px 0;cursor:pointer;transition:color .2s}
+#bnav button.on{color:var(--pri);font-weight:650}
+#bnav button svg{width:22px;height:22px;stroke-width:1.8}
+#bnav button.on svg{stroke:var(--pri)}
 </style>
 </head>
 <body>
@@ -64,30 +76,30 @@ dialog::backdrop{background:rgba(0,0,0,.45)}
 <section id="login" hidden>
   <div class="login-header">
     <h2>Serikat Kematian</h2>
-    <p>Silakan pilih jenis portal untuk masuk</p>
+    <p style="opacity:.85;font-size:14px;margin-top:6px">Sistem Administrasi & Keuangan Terpadu</p>
   </div>
   <div class="login-cards">
     <div class="login-card">
       <div>
         <h3>Portal Pengurus</h3>
-        <p class="muted">Akses pengelolaan data anggota, iuran, kas, dan santunan.</p>
+        <p class="muted" style="font-size:13px;margin:8px 0 16px">Kelola data anggota, pencatatan iuran, mutasi kas, dan klaim santunan.</p>
       </div>
-      <button class="primary" data-act="openLoginAdmin" style="margin-top:16px">Masuk Pengurus</button>
+      <button class="primary" data-act="openLoginAdmin">Masuk Pengurus</button>
     </div>
     <div class="login-card">
       <div>
         <h3>Portal Peserta</h3>
-        <p class="muted">Cek status keanggotaan dan histori pembayaran iuran.</p>
+        <p class="muted" style="font-size:13px;margin:8px 0 16px">Cek status keaktifan, histori pembayaran iuran, dan rincian santunan.</p>
       </div>
-      <button class="ghost" data-act="openLoginPeserta" style="margin-top:16px">Masuk Peserta</button>
+      <button class="ghost" data-act="openLoginPeserta">Masuk Peserta</button>
     </div>
   </div>
 </section>
 
 <div id="app" hidden>
   <header>
-    <div><small id="roleLbl">Pengurus</small><h1 id="brand" style="font-size:18px">Serikat Kematian</h1></div>
-    <button class="ghost" id="logoutBtn" data-act="logout" style="color:#fff;border-color:rgba(255,255,255,.3)">Keluar</button>
+    <div><small id="roleLbl">Pengurus</small><h1 id="brand">Serikat Kematian</h1></div>
+    <button class="ghost" id="logoutBtn" data-act="logout" style="color:#fff;border-color:rgba(255,255,255,.3);padding:6px 12px;font-size:13px">Keluar</button>
   </header>
   <main id="view"></main>
   <div id="bnav"></div>
@@ -117,7 +129,22 @@ function toast(msg, err) {
 }
 const bar = on => { $('#bar').style.display = on ? 'block' : 'none'; };
 
-const NAVS = [['dashboard', 'Beranda'], ['tagih', 'Tagih'], ['anggota', 'Anggota'], ['santunan', 'Santunan'], ['kas', 'Kas']];
+// Ikon SVG Profesional untuk Bottom Navigasi
+const ICONS = {
+  dashboard: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>',
+  tagih: '<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>',
+  anggota: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  santunan: '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>',
+  kas: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'
+};
+
+const NAVS = [
+  ['dashboard', 'Beranda', ICONS.dashboard], 
+  ['tagih', 'Tagih', ICONS.tagih], 
+  ['anggota', 'Anggota', ICONS.anggota], 
+  ['santunan', 'Santunan', ICONS.santunan], 
+  ['kas', 'Kas', ICONS.kas]
+];
 
 async function api(action, payload) {
   if (!API_URL) throw new Error('API_URL belum diisi.');
@@ -134,7 +161,7 @@ document.addEventListener('click', e => {
   
   if (act === 'openLoginAdmin') {
     const d = $('#dlg');
-    d.innerHTML = `<h3>Login Pengurus</h3><p class="muted" style="margin:4px 0 12px">Masukkan password pengurus</p><form id="formAdmin"><label>Password</label><input id="pwAdmin" type="password" required><p class="ferr" id="errAdmin"></p><div class="row end" style="margin-top:16px"><button type="button" class="ghost" onclick="$('#dlg').close()">Batal</button><button class="primary" type="submit">Masuk</button></div></form>`;
+    d.innerHTML = `<h3>Login Pengurus</h3><p class="muted" style="margin:4px 0 14px">Masukkan password pengurus</p><form id="formAdmin"><label>Password</label><input id="pwAdmin" type="password" required><p class="ferr" id="errAdmin"></p><div class="row end" style="margin-top:16px"><button type="button" class="ghost" onclick="$('#dlg').close()">Batal</button><button class="primary" type="submit">Masuk</button></div></form>`;
     d.showModal();
     $('#pwAdmin').focus();
     $('#formAdmin').onsubmit = async ev => {
@@ -150,7 +177,7 @@ document.addEventListener('click', e => {
   
   if (act === 'openLoginPeserta') {
     const d = $('#dlg');
-    d.innerHTML = `<h3>Login Peserta</h3><p class="muted" style="margin:4px 0 12px">Masukkan No. Induk / No. HP dan PIN</p><form id="formPeserta"><label>No. Induk / No. HP</label><input id="noPeserta" type="text" required><label>PIN (6 Digit)</label><input id="pinPeserta" type="password" required><p class="ferr" id="errPeserta"></p><div class="row end" style="margin-top:16px"><button type="button" class="ghost" onclick="$('#dlg').close()">Batal</button><button class="primary" type="submit">Masuk Portal</button></div></form>`;
+    d.innerHTML = `<h3>Login Peserta</h3><p class="muted" style="margin:4px 0 14px">Masukkan No. Induk dan PIN Anda</p><form id="formPeserta"><label>No. Induk / No. HP</label><input id="noPeserta" type="text" required><label>PIN (6 Digit)</label><input id="pinPeserta" type="password" required><p class="ferr" id="errPeserta"></p><div class="row end" style="margin-top:16px"><button type="button" class="ghost" onclick="$('#dlg').close()">Batal</button><button class="primary" type="submit">Masuk Portal</button></div></form>`;
     d.showModal();
     $('#noPeserta').focus();
     $('#formPeserta').onsubmit = async ev => {
@@ -181,10 +208,7 @@ function showLogin() {
   $('#app').hidden = true; 
   $('#login').hidden = false; 
 }
-
-function logout() {
-  showLogin();
-}
+function logout() { showLogin(); }
 
 async function boot() {
   bar(true);
@@ -192,11 +216,11 @@ async function boot() {
     if (S.role === 'admin') {
       const j = await api('getAll'); 
       S.data = j.data; S.tab = 'dashboard';
-      $('#bnav').innerHTML = NAVS.map(n => '<button data-tab="' + n[0] + '" class="' + (S.tab === n[0] ? 'on' : '') + '"><span>' + n[1] + '</span></button>').join('');
+      $('#bnav').innerHTML = NAVS.map(n => `<button data-tab="${n[0]}" class="${S.tab === n[0] ? 'on' : ''}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${n[2]}</svg><span>${n[1]}</span></button>`).join('');
     } else {
       const j = await api('memberGet');
       S.data = j.data; S.tab = 'pesertaNav';
-      $('#bnav').innerHTML = '<button data-tab="pesertaNav" class="on"><span>Status Saya</span></button>';
+      $('#bnav').innerHTML = `<button data-tab="pesertaNav" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">${ICONS.anggota}</svg><span>Status Saya</span></button>`;
     }
     $('#login').hidden = true; $('#app').hidden = false;
     $('#roleLbl').textContent = S.role === 'admin' ? 'Pengurus' : 'Peserta';
@@ -213,22 +237,33 @@ const saldoKas = () => (S.data && S.data.kas) ? S.data.kas.reduce((s, k) => s + 
 function render() {
   const v = $('#view');
   if (!S.data) return;
-  if (S.role === 'peserta') { v.innerHTML = `<div class="card"><h3>Halo, ${esc(S.data.nama)}</h3><p class="muted">Status: <b>${esc(S.data.status)}</b></p></div>`; return; }
+  
+  if (S.role === 'peserta') { 
+    v.innerHTML = `<div class="card"><h3>Halo, ${esc(S.data.nama)}</h3><p class="muted">No. Induk: ${esc(S.data.noInduk)} | Status: <span class="badge">${esc(S.data.status)}</span></p></div>
+    <div class="grid"><div class="stat"><small>Total Tunggakan</small><b class="out">${rp(S.data.tunggakan.total)}</b></div><div class="stat"><small>Saldo Kas Organisasi</small><b>${rp(S.data.kas.saldo)}</b></div></div>`; 
+    return; 
+  }
   
   if (S.tab === 'dashboard') {
-    v.innerHTML = `<div class="hero"><small>Saldo Kas</small><b>${rp(saldoKas())}</b></div><div class="card"><h3>Dashboard Pengurus Aktif</h3><p class="muted">Total Anggota: ${S.data.anggota.length}</p></div>`;
+    const aktif = S.data.anggota.filter(a => a.Status === 'Aktif').length;
+    const terkumpul = S.data.iuran.filter(i => i.Periode === thisMonth()).reduce((s, i) => s + i.Jumlah, 0);
+    v.innerHTML = `<div class="hero"><small>Saldo Kas Organisasi</small><b>${rp(saldoKas())}</b><div style="margin-top:8px;font-size:13px;opacity:.9"><b>${aktif}</b> KK Aktif &bull; Iuran Terkumpul Bulan Ini: <b>${rp(terkumpul)}</b></div></div>
+    <div class="card"><h3>Ringkasan Sistem</h3><p class="muted" style="margin-top:6px">Gunakan menu navigasi di bawah untuk mengelola data anggota, pengecekan tagihan, dan laporan keuangan kas secara real-time.</p></div>`;
   } else if (S.tab === 'anggota') {
-    v.innerHTML = `<div class="card"><h3>Daftar Anggota</h3><table><thead><tr><th>Nama</th><th>Status</th></tr></thead><tbody>${S.data.anggota.map(a => `<tr><td>${esc(a.Nama)}</td><td>${esc(a.Status)}</td></tr>`).join('')}</tbody></table></div>`;
-  } else {
-    v.innerHTML = `<div class="card"><h3>Menu ${S.tab}</h3><p class="muted">Fitur aktif.</p></div>`;
+    v.innerHTML = `<div class="card"><div class="row between" style="margin-bottom:12px"><h3>Daftar Anggota (${S.data.anggota.length})</h3></div>
+    <div class="tw"><table><thead><tr><th>Nama / No. Induk</th><th>Tanggungan</th><th>Status</th></tr></thead><tbody>
+    ${S.data.anggota.map(a => `<tr><td><b>${esc(a.Nama)}</b><br><small class="muted">${esc(a.NoInduk \vert{}\vert{} '-')}</small></td><td>${a.Tanggungan} Jiwa</td><td><span class="badge ${a.Status === 'Aktif' ? '' : 'off'}">${esc(a.Status)}</span></td></tr>`).join('')}
+    </tbody></table></div></div>`;
+  } else if (S.tab === 'tagih') {
+    v.innerHTML = `<div class="card"><h3>Modul Penagihan</h3><p class="muted" style="margin-top:6px">Fitur pencatatan dan monitoring iuran bulanan warga terhubung langsung dengan Google Sheets.</p></div>`;
+  } else if (S.tab === 'santunan') {
+    v.innerHTML = `<div class="card"><h3>Riwayat Santunan Kematian</h3><p class="muted" style="margin-top:6px">Total data klaim tercatat: <b>${S.data.kematian.length}</b> kejadian.</p></div>`;
+  } else if (S.tab === 'kas') {
+    v.innerHTML = `<div class="card"><h3>Buku Kas Keuangan</h3><p class="muted" style="margin-top:6px">Total mutasi transaksi tercatat: <b>${S.data.kas.length}</b> transaksi.</p></div>`;
   }
 }
 
-if (S.token) {
-  boot();
-} else {
-  showLogin();
-}
+if (S.token) { boot(); } else { showLogin(); }
 </script>
 </body>
 </html>
