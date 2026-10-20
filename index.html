@@ -257,7 +257,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzayXGaw8GHF2lU4AFMDQjO
 const BULAN=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const BLN=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const MAIN=['beranda','anggota','iuran','kas','akun'];
-const VIEWS=MAIN.concat(['tunggakan','laporan']);
+const VIEWS=MAIN.concat(['tunggakan','laporan','santunan']);
 
 /* ---------- util ---------- */
 const $=id=>document.getElementById(id);
@@ -283,8 +283,8 @@ let pending=0;
 function busy(d){pending+=d;$('bar').classList.toggle('on',pending>0);}
 
 /* ---------- state ---------- */
-const emptyS=()=>({anggota:[],iuran:[],kas:[],pengaturan:{}});
-let S=ls.get('sk_cache',null)||emptyS();
+const emptyS=()=>({anggota:[],iuran:[],kas:[],kejadian:[],tagihan:[],pengaturan:{}});
+let S=Object.assign(emptyS(),ls.get('sk_cache',null)||{});
 let token=ls.get('sk_token','');
 let view='beranda';
 let lastLoad=0;
@@ -317,7 +317,7 @@ async function api(action,payload={}){
 }
 async function reload(){
   const j=await api('getAll');
-  S=j.data;lastLoad=Date.now();
+  S=Object.assign(emptyS(),j.data);lastLoad=Date.now();
   ls.set('sk_cache',S);
   if(S.pengaturan['Nama Serikat'])ls.set('sk_name',S.pengaturan['Nama Serikat']);
 }
@@ -364,9 +364,10 @@ function renderCek(d){
     <div class="n">${esc(a.noAnggota)}</div><div class="nm">${esc(a.nama)}</div>
     <div class="r"><div><small>Status</small><b>${esc(a.status)}</b></div><div><small>Bergabung</small><b>${esc(a.tanggalMasuk)}</b></div><div><small>Tanggungan</small><b>${esc(a.tanggungan||0)}</b></div></div></div>
   ${st}
+  ${(d.tagihanSantunan||[]).map(x=>`<div class="stbox bad"><b>Iuran santunan wafat ${esc(x.nama)}</b>${esc(x.jiwa)} jiwa · ${rp(x.nominal)} belum dibayar</div>`).join('')}
   <div class="sec" style="margin:18px 0 8px"><h2>Riwayat Pembayaran</h2></div>
   <div class="list">${(d.riwayat||[]).length?d.riwayat.map(r=>`<div class="item"><div class="av">${ic('check','sm')}</div><div class="mid"><b>${BULAN[r.bulan-1]} ${esc(r.tahun)}</b><small>Dibayar ${esc(r.tanggal)}</small></div><div class="amt">${rp(r.jumlah)}</div></div>`).join(''):`<div class="empty">Belum ada pembayaran tercatat.</div>`}</div>
-  <div class="card" style="margin-top:14px"><div class="kv"><span>Iuran bulanan</span><b>${rp(iur)}</b></div><div class="kv"><span>Santunan kematian</span><b>${rp(p['Santunan Kematian'])}</b></div></div>
+  <div class="card" style="margin-top:14px"><div class="kv"><span>Iuran bulanan</span><b>${rp(iur)}</b></div><div class="kv"><span>Iuran santunan per jiwa</span><b>${rp(p['Iuran Santunan'])}</b></div></div>
   ${kontak?`<a class="btn wa block" target="_blank" rel="noopener" href="${kontak}" style="text-decoration:none">${ic('chat')} Hubungi Pengurus</a>`:''}`;
 }
 
@@ -418,10 +419,10 @@ function cpHdr(title,withBack){
 }
 function render(){
   if($('app').classList.contains('hide'))return;
-  ({beranda:vBeranda,anggota:vAnggota,iuran:vIuran,kas:vKas,akun:vAkun,tunggakan:vTunggakan,laporan:vLaporan}[view]||vBeranda)();
+  ({beranda:vBeranda,anggota:vAnggota,iuran:vIuran,kas:vKas,akun:vAkun,tunggakan:vTunggakan,laporan:vLaporan,santunan:vSantunan}[view]||vBeranda)();
   const act=MAIN.includes(view)?view:'beranda';
   document.querySelectorAll('#mnav button').forEach(b=>b.classList.toggle('on',b.dataset.v===act));
-  const m={anggota:['Anggota','formAnggota()'],iuran:['Catat Iuran',"formIuran('',fIuran.b,fIuran.t)"],kas:['Transaksi','formKas()']}[view];
+  const m={anggota:['Anggota','formAnggota()'],iuran:['Catat Iuran',"formIuran('',fIuran.b,fIuran.t)"],kas:['Transaksi','formKas()'],santunan:['Catat Wafat','formWafat()']}[view];
   $('fabw').innerHTML=m?`<button class="fab" onclick="${m[1]}">${ic('plus')}${m[0]}</button>`:'';
 }
 async function doRefresh(){try{await reload();render();toast('Data diperbarui');}catch(e){toast(e.message);}}
@@ -488,7 +489,7 @@ function vBeranda(){
   const tg=menunggak();
   const last=[...S.kas].sort((x,y)=>String(y.Tanggal).localeCompare(String(x.Tanggal))).slice(0,5);
   setHdr(`<div class="hrow"><div><small>Assalamualaikum 👋</small><h1>${esc(nm())}</h1></div><button class="ib" onclick="doRefresh()" aria-label="Muat ulang">${ic('refresh')}</button></div>`);
-  const menu=[['users','Anggota',"go('anggota')",''],['receipt','Catat Iuran',"formIuran('',fIuran.b,fIuran.t)",''],['alert','Tunggakan',"go('tunggakan')",'r'],['heart','Santunan',"formSantunan('')",'o'],
+  const menu=[['users','Anggota',"go('anggota')",''],['receipt','Catat Iuran',"formIuran('',fIuran.b,fIuran.t)",''],['alert','Tunggakan',"go('tunggakan')",'r'],['heart','Santunan',"go('santunan')",'o'],
     ['wallet','Kas',"go('kas')",'b'],['chart','Laporan',"go('laporan')",'b'],['plus','Tambah Anggota',"formAnggota()",''],['user','Akun',"go('akun')",'']];
   $('page').innerHTML=`
   <div class="sumcard"><div class="lbl">Saldo Kas</div><div class="big">${rp(s.saldo)}</div>
@@ -498,6 +499,7 @@ function vBeranda(){
   ${!S.anggota.length?`<div class="card" style="margin:14px 16px 0"><b>Selamat datang!</b><p class="note" style="margin:6px 0 12px">Mulai dengan menambahkan anggota pertama. Nomor anggota dibuat otomatis.</p><button class="btn block" onclick="formAnggota()">${ic('plus')} Tambah Anggota</button></div>`:`
   <div class="stats" style="margin:14px 16px 0"><div class="stat"><small>Anggota aktif</small><b>${aktif}</b></div><div class="stat"><small>Menunggak</small><b class="${tg.length?'out':''}">${tg.length} orang</b></div></div>`}
   ${tg.length?`<div class="sec"><h2>Perlu ditagih</h2><a onclick="go('tunggakan')">Lihat semua</a></div><div class="list">${tg.slice(0,3).map(a=>tgItem(a)).join('')}</div>`:''}
+  ${talanganCard()}
   <div class="sec"><h2>Aktivitas kas terakhir</h2><a onclick="go('kas')">Semua</a></div>
   <div class="list">${last.length?last.map(kasItem).join(''):empty('inbox','Belum ada transaksi')}</div>`;
 }
@@ -548,7 +550,7 @@ function showAnggota(id){
     ${a.Status==='Aktif'?`<button class="btn" onclick="closeSheet();formIuran('${esc(a.ID)}',${t.length?t[0].bulan:n.getMonth()+1},${t.length?t[0].tahun:n.getFullYear()})">${ic('receipt','sm')} Catat Iuran</button>`:''}
     ${wa&&a.Status==='Aktif'?`<a class="btn wa" target="_blank" rel="noopener" href="${wa}" style="text-decoration:none">${ic('chat','sm')} Ingatkan WA</a>`:''}
     <button class="btn out" onclick="closeSheet();formAnggota('${esc(a.ID)}')">${ic('edit','sm')} Ubah</button>
-    ${a.Status==='Aktif'?`<button class="btn out" onclick="closeSheet();formSantunan('${esc(a.ID)}')">${ic('heart','sm')} Santunan</button>`:''}
+    ${a.Status==='Aktif'?`<button class="btn out" onclick="closeSheet();formWafat('${esc(a.ID)}')">${ic('heart','sm')} Catat Wafat</button>`:''}
     <button class="btn red" style="grid-column:1/-1" onclick="hapusAnggota('${esc(a.ID)}')">${ic('trash','sm')} Hapus Anggota</button>
   </div>`);
 }
@@ -567,16 +569,59 @@ function hapusAnggota(id){
   const a=S.anggota.find(x=>x.ID===id);
   ask('Hapus anggota?',`"${a.Nama}" akan dihapus. Riwayat iuran dan kas tetap tersimpan.`,'Hapus',()=>api('deleteAnggota',{id}));
 }
-function formSantunan(id){
-  const aktif=S.anggota.filter(a=>a.Status==='Aktif');
-  if(!aktif.length){toast('Belum ada anggota aktif');return;}
-  openForm('Santunan Kematian',[
-    {k:'anggotaId',label:'Anggota yang wafat',type:'select',value:id||aktif[0].ID,options:aktif.map(a=>[a.ID,a.Nama])},
-    {k:'jumlah',label:'Jumlah santunan (Rp)',type:'number',value:santunanDef()},
-    {k:'tanggal',label:'Tanggal',type:'date',value:todayStr()},
-    {k:'keterangan',label:'Keterangan (opsional)',value:''}
-  ],async d=>{await api('santunan',d);return 'Santunan tercatat di kas';},'Cairkan');
+/* ---------- SANTUNAN KEMATIAN ---------- */
+const isAuto=id=>/^K[TS]?-/.test(String(id));
+const KJ=()=>S.kejadian||[],TG=()=>S.tagihan||[];
+function kjStat(k){
+  const t=TG().filter(x=>x['ID Kejadian']===k.ID),lunas=t.filter(x=>x.Status==='Lunas');
+  const terkumpul=lunas.reduce((s,x)=>s+Number(x.Nominal),0),cair=Number(k['Jumlah Dicairkan'])||0;
+  return{t,lunas,belum:t.filter(x=>x.Status!=='Lunas'),total:Number(k['Total Tagihan'])||0,santunan:Number(k.Santunan)||0,terkumpul,cair,talangan:cair?Math.max(0,cair-terkumpul):0};
 }
+function talanganCard(){
+  const n=KJ().reduce((s,k)=>s+kjStat(k).talangan,0);if(!n)return '';
+  return `<div class="card" style="margin:14px 16px 0;background:var(--warnbg);color:var(--warn)"><b>Kas sedang menalang ${rp(n)}</b><p class="note" style="margin:4px 0 10px;color:inherit">Ada iuran santunan yang belum dibayar anggota.</p><button class="btn sm" onclick="go('santunan')">Lihat tagihan</button></div>`;
+}
+function vSantunan(){
+  cpHdr('Santunan Kematian',true);
+  const l=[...KJ()].sort((a,b)=>String(b.Tanggal).localeCompare(String(a.Tanggal)));
+  const bd=s=>!s.cair?'<span class="badge tg">Belum cair</span>':s.talangan?`<span class="badge" style="background:var(--warnbg);color:var(--warn)">Talangan ${rp(s.talangan)}</span>`:s.belum.length?`<span class="badge">${s.belum.length} belum bayar</span>`:'<span class="badge ok">Tuntas</span>';
+  $('page').innerHTML=`<div class="pad"><p class="note" style="margin:0 0 10px">Iuran santunan ${rp(S.pengaturan['Iuran Santunan'])} per jiwa, ditagih saat ada yang wafat. ${esc(S.pengaturan['Persen Santunan']||95)}% disalurkan sebagai santunan, sisanya masuk kas.</p>${l.length?`<div class="list">${l.map(k=>{const s=kjStat(k);return `<button class="item" onclick="showKejadian('${esc(k.ID)}')"><div class="av" style="background:var(--warnbg);color:var(--warn)">${ic('heart','sm')}</div><div class="mid"><b>${esc(k.Nama)}</b><small>${esc(k.Tanggal)} · ${s.lunas.length}/${s.t.length} KK lunas</small></div><div class="end">${bd(s)}</div></button>`;}).join('')}</div>`:empty('heart','Belum ada kejadian wafat')}</div>`;
+}
+function showKejadian(id){
+  const k=KJ().find(x=>x.ID===id);if(!k)return;const s=kjStat(k);
+  const row=(t,b)=>{const a=S.anggota.find(x=>x.ID===t['ID Anggota'])||{};
+    const wa=waLink(a.WA,`Assalamualaikum ${t.Nama}, telah wafat ${k.Nama}. Iuran santunan ${nm()}: ${t.Jiwa} jiwa × ${rp(k.Tarif)} = ${rp(t.Nominal)}. Mohon dibayarkan ke pengurus. Terima kasih 🙏`);
+    return `<div class="item" style="cursor:default"><div class="mid"><b>${esc(t.Nama)}</b><small>${esc(t.Jiwa)} jiwa · ${rp(t.Nominal)}</small></div><div class="end" style="flex-direction:row;gap:6px">${b?`${wa?`<a class="ib dark" target="_blank" rel="noopener" href="${wa}" aria-label="Tagih via WhatsApp" style="color:#1faa59">${ic('chat','sm')}</a>`:''}<button class="btn sm" onclick="bayarT('${esc(t.ID)}','${esc(id)}')">Lunas</button>`:`<button class="ib dark" style="width:36px;height:36px" onclick="batalT('${esc(t.ID)}','${esc(id)}')" aria-label="Batalkan pembayaran">${ic('x','sm')}</button>`}</div></div>`;};
+  sheet('Wafat: '+k.Nama,`<div class="card" style="box-shadow:none;border:1px solid var(--ln);margin-top:6px">
+    <div class="kv"><span>Tanggal</span><b>${esc(k.Tanggal)}</b></div>
+    <div class="kv"><span>Total tagihan</span><b>${rp(s.total)}</b></div>
+    <div class="kv"><span>Santunan keluarga</span><b>${rp(s.santunan)}</b></div>
+    <div class="kv"><span>Bagian kas</span><b>${rp(s.total-s.santunan)}</b></div>
+    <div class="kv"><span>Sudah terkumpul</span><b class="in">${rp(s.terkumpul)}</b></div>
+    <div class="kv"><span>Talangan kas</span><b class="${s.talangan?'out':''}">${rp(s.talangan)}</b></div></div>
+  ${!s.cair?`<button class="btn block" onclick="closeSheet();formCair('${esc(id)}')">Cairkan santunan ${rp(s.santunan)}</button>`:`<p class="note">Dicairkan ${esc(k['Tanggal Cair'])}: ${rp(s.cair)}</p>`}
+  <div class="sec" style="margin:16px 0 8px"><h2>Belum bayar (${s.belum.length})</h2></div><div class="list" style="margin:0">${s.belum.length?s.belum.map(t=>row(t,1)).join(''):empty('check','Semua sudah lunas')}</div>
+  ${s.lunas.length?`<div class="sec" style="margin:16px 0 8px"><h2>Lunas (${s.lunas.length})</h2></div><div class="list" style="margin:0">${s.lunas.map(t=>row(t,0)).join('')}</div>`:''}`);
+}
+async function bayarT(tid,kid){try{await api('bayarTagihan',{ids:[tid],tanggal:todayStr()});await reload();render();showKejadian(kid);toast('Tercatat lunas, masuk kas');}catch(e){toast(e.message);}}
+async function batalT(tid,kid){try{await api('batalBayar',{id:tid});await reload();render();showKejadian(kid);toast('Pembayaran dibatalkan');}catch(e){toast(e.message);}}
+function formCair(id){
+  const k=KJ().find(x=>x.ID===id),s=kjStat(k),tal=Math.max(0,s.santunan-s.terkumpul);
+  openForm('Cairkan Santunan',[
+    {k:'jumlah',label:'Jumlah santunan (Rp)',type:'number',value:s.santunan,hint:tal?`Baru terkumpul ${rp(s.terkumpul)}. Kas menalang ${rp(tal)} (saldo kas ${rp(saldo().saldo)}); kembali otomatis saat anggota membayar.`:'Seluruh iuran sudah terkumpul.'},
+    {k:'tanggal',label:'Tanggal',type:'date',value:todayStr()}
+  ],async d=>{d.kejadianId=id;await api('cairkan',d);return 'Santunan dicairkan dari kas';},'Cairkan');
+}
+function formWafat(id){
+  const aktif=S.anggota.filter(a=>a.Status==='Aktif');if(!aktif.length){toast('Belum ada anggota aktif');return;}
+  openForm('Catat Wafat',[
+    {k:'anggotaId',label:'Kepala keluarga (anggota)',type:'select',value:id||aktif[0].ID,options:aktif.map(a=>[a.ID,a.Nama+' ('+(a['No Anggota']||'-')+')'])},
+    {k:'yang',label:'Yang wafat',type:'select',value:'Kepala keluarga',options:[['Kepala keluarga','Kepala keluarga'],['Tanggungan','Anggota tanggungan']]},
+    {k:'namaWafat',label:'Nama yang wafat (opsional)',value:'',hint:'Kosongkan bila kepala keluarga. Tagihan dibuat otomatis untuk semua KK aktif lain: jiwa × tarif santunan.'},
+    {k:'tanggal',label:'Tanggal wafat',type:'date',value:todayStr()}
+  ],async d=>{const j=await api('kejadian',d);return `Tagihan dibuat untuk ${j.kk} KK (total ${rp(j.total)})`;},'Buat Tagihan');
+}
+
 
 /* ---------- IURAN ---------- */
 function iuranShift(d){shiftM(fIuran,d);vIuran();}
@@ -624,7 +669,7 @@ function vKas(){
 function monthKas(b,t){return S.kas.filter(k=>String(k.Tanggal).slice(0,7)===ym(b,t));}
 function kasAksi(id){
   const k=S.kas.find(x=>x.ID===id);if(!k)return;
-  const auto=String(k.ID).startsWith('K-');
+  const auto=isAuto(k.ID);
   sheet('Detail Transaksi',`<div class="card" style="box-shadow:none;border:1px solid var(--ln);margin-top:6px">
     <div class="kv"><span>Tanggal</span><b>${esc(k.Tanggal)}</b></div><div class="kv"><span>Jenis</span><b>${esc(k.Jenis)}</b></div>
     <div class="kv"><span>Jumlah</span><b class="${k.Jenis==='Masuk'?'in':'out'}">${rp(k.Jumlah)}</b></div><div class="kv"><span>Keterangan</span><b>${esc(k.Keterangan)}</b></div></div>
@@ -657,7 +702,7 @@ function vLaporan(){
   const t=fLap.t,per=Array.from({length:12},(_,i)=>S.iuran.filter(x=>Number(x.Tahun)===t&&Number(x.Bulan)===i+1).reduce((s,x)=>s+Number(x.Jumlah),0));
   const max=Math.max(1,...per),tot=per.reduce((a,b)=>a+b,0);
   const keluar=S.kas.filter(k=>k.Jenis==='Keluar'&&String(k.Tanggal).slice(0,4)===String(t)).reduce((s,k)=>s+Number(k.Jumlah),0);
-  const lain=S.kas.filter(k=>k.Jenis==='Masuk'&&!String(k.ID).startsWith('K-')&&String(k.Tanggal).slice(0,4)===String(t)).reduce((s,k)=>s+Number(k.Jumlah),0);
+  const lain=S.kas.filter(k=>k.Jenis==='Masuk'&&!isAuto(k.ID)&&String(k.Tanggal).slice(0,4)===String(t)).reduce((s,k)=>s+Number(k.Jumlah),0);
   const n=new Date(),b=n.getMonth()+1,ty=n.getFullYear(),bb=belumBayar(b,ty),sd=saldo();
   const wa=`*Laporan ${nm()}*\n${BULAN[b-1]} ${ty}\n\nSaldo kas: ${rp(sd.saldo)}\nIuran bulan ini terkumpul: ${rp(sudahBayar(b,ty).reduce((x,i)=>x+Number(i.Jumlah),0))}\nBelum bayar (${bb.length}): ${bb.map(a=>a.Nama).join(', ')||'-'}\n\nTerima kasih 🙏`;
   $('page').innerHTML=`<div class="pad">
@@ -675,8 +720,9 @@ function vAkun(){
   <div class="card"><b>Pengaturan Serikat</b>
   <form id="fSet" autocomplete="off">
     <label>Nama serikat</label><input name="Nama Serikat" value="${esc(p['Nama Serikat'])}">
-    <label>Iuran bulanan (Rp)</label><input name="Iuran Bulanan" type="number" inputmode="numeric" min="0" value="${esc(p['Iuran Bulanan'])}">
-    <label>Santunan kematian (Rp)</label><input name="Santunan Kematian" type="number" inputmode="numeric" min="0" value="${esc(p['Santunan Kematian'])}">
+    <label>Iuran bulanan per KK (Rp)</label><input name="Iuran Bulanan" type="number" inputmode="numeric" min="0" value="${esc(p['Iuran Bulanan'])}">
+    <label>Iuran santunan per jiwa (Rp)</label><input name="Iuran Santunan" type="number" inputmode="numeric" min="0" value="${esc(p['Iuran Santunan'])}">
+    <label>Persen santunan untuk keluarga duka (%)</label><input name="Persen Santunan" type="number" inputmode="numeric" min="1" max="100" value="${esc(p['Persen Santunan']||95)}"><p class="note" style="margin:4px 0 0">Sisanya otomatis menjadi bagian kas.</p>
     <label>No. WhatsApp pengurus</label><input name="Kontak Pengurus" type="tel" inputmode="tel" value="${esc(p['Kontak Pengurus'])}">
     <label>PIN baru (kosongkan bila tidak diganti)</label><input name="PIN Admin" type="password" inputmode="numeric" autocomplete="new-password" placeholder="4–12 digit angka">
     <p class="msg" id="setErr"></p>
