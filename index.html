@@ -52,6 +52,7 @@
     <label>PIN</label>
     <input id="pin" type="password" inputmode="numeric" autocomplete="current-password">
     <div style="margin-top:14px"><button class="btn" style="width:100%" onclick="doLogin()">Masuk</button></div>
+    <p id="loginErr" style="color:var(--danger);margin:12px 0 0;font-size:14px"></p>
   </div>
 </div>
 
@@ -98,9 +99,17 @@ function waLink(no, text){
 
 /* ---------- API ---------- */
 async function api(action, payload={}){
-  const res = await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify(Object.assign({action,token},payload))});
-  const j = await res.json();
+  if(API_URL.includes('GANTI_DENGAN')) throw new Error('API_URL di index.html belum diganti dengan URL web app GAS (yang berakhiran /exec).');
+  let res;
+  try{
+    res = await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body:JSON.stringify(Object.assign({action,token},payload))});
+  }catch(e){
+    throw new Error('Tidak bisa terhubung ke server. Pastikan deploy GAS: Execute as "Me", Who has access "Anyone", dan URL berakhiran /exec.');
+  }
+  let j;
+  try{ j = JSON.parse(await res.text()); }
+  catch(e){ throw new Error('Server tidak mengembalikan JSON. Cek URL /exec dan deploy ulang sebagai versi baru.'); }
   if(j.auth===false){ logout(true); throw new Error(j.error); }
   if(!j.ok) throw new Error(j.error||'Terjadi kesalahan');
   return j;
@@ -112,12 +121,17 @@ async function run(fn, okMsg){
 /* ---------- login ---------- */
 async function doLogin(){
   const pin = $('pin').value.trim();
-  if(!pin) return toast('Isi PIN');
-  await run(async()=>{
+  const err = $('loginErr'); err.textContent = '';
+  if(!pin){ err.textContent = 'Isi PIN dulu.'; return; }
+  err.style.color = 'var(--muted)'; err.textContent = 'Memeriksa…';
+  try{
     const j = await api('login',{pin});
     token = j.token; sessionStorage.setItem('sk_token',token);
     await startApp();
-  });
+    err.textContent = '';
+  }catch(e){
+    err.style.color = 'var(--danger)'; err.textContent = e.message;
+  }
 }
 function logout(silent){
   token=''; sessionStorage.removeItem('sk_token');
