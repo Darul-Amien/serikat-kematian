@@ -470,7 +470,7 @@ function openForm(title,fields,onSubmit,label='Simpan'){
     ev.preventDefault();
     const data={};new FormData($('frm')).forEach((v,k)=>data[k]=v);
     const ok=$('frmOk');ok.disabled=true;ok.textContent='Menyimpan…';
-    try{const msg=await onSubmit(data);closeSheet();await reload();render();toast(msg||'Tersimpan');}
+    try{const msg=await onSubmit(data);closeSheet();await reload();render();toast(msg||'Tersimpan');if(window.afterSave){const f=window.afterSave;window.afterSave=null;f();}}
     catch(e){$('frmErr').textContent=e.message;ok.disabled=false;ok.textContent=label;}
   };
 }
@@ -599,7 +599,7 @@ function showKejadian(id){
   const k=KJ().find(x=>x.ID===id);if(!k)return;const s=kjStat(k);
   const row=(t,b)=>{const a=S.anggota.find(x=>x.ID===t['ID Anggota'])||{};
     const wa=waLink(a.WA,`Assalamualaikum ${t.Nama}, telah wafat ${k.Nama}. Iuran santunan ${nm()}: ${t.Jiwa} jiwa × ${rp(k.Tarif)} = ${rp(t.Nominal)}. Mohon dibayarkan ke pengurus. Terima kasih 🙏`);
-    return `<div class="item" style="cursor:default"><div class="mid"><b>${esc(t.Nama)}</b><small>${esc(t.Jiwa)} jiwa · ${rp(t.Nominal)}</small></div><div class="end" style="flex-direction:row;gap:6px">${b?`${wa?`<a class="ib dark" target="_blank" rel="noopener" href="${wa}" aria-label="Tagih via WhatsApp" style="color:#1faa59">${ic('chat','sm')}</a>`:''}<button class="btn sm" onclick="bayarT('${esc(t.ID)}','${esc(id)}')">Lunas</button>`:`<button class="ib dark" style="width:36px;height:36px" onclick="buktiSantunan('${esc(t.ID)}')" aria-label="Bagikan bukti">${ic('share','sm')}</button><button class="ib dark" style="width:36px;height:36px" onclick="batalT('${esc(t.ID)}','${esc(id)}')" aria-label="Batalkan pembayaran">${ic('x','sm')}</button>`}</div></div>`;};
+    return `<div class="item" style="cursor:default"><div class="mid"><b>${esc(t.Nama)}</b><small>${esc(t.Jiwa)} jiwa · ${rp(t.Nominal)}</small></div><div class="end" style="flex-direction:row;gap:6px">${b?`${wa?`<a class="ib dark" target="_blank" rel="noopener" href="${wa}" aria-label="Tagih via WhatsApp" style="color:#1faa59">${ic('chat','sm')}</a>`:''}<button class="btn sm" onclick="bayarT('${esc(t.ID)}','${esc(id)}')">Lunas</button>`:`<a class="ib dark" target="_blank" rel="noopener" href="${waBuktiS(t)}" aria-label="Kirim bukti via WhatsApp" style="width:36px;height:36px;color:#1faa59">${ic('chat','sm')}</a><button class="ib dark" style="width:36px;height:36px" onclick="buktiSantunan('${esc(t.ID)}')" aria-label="Bagikan bukti">${ic('share','sm')}</button><button class="ib dark" style="width:36px;height:36px" onclick="batalT('${esc(t.ID)}','${esc(id)}')" aria-label="Batalkan pembayaran">${ic('x','sm')}</button>`}</div></div>`;};
   sheet('Wafat: '+k.Nama,`<div class="card" style="box-shadow:none;border:1px solid var(--ln);margin-top:6px">
     <div class="kv"><span>Tanggal</span><b>${esc(k.Tanggal)}</b></div>
     <div class="kv"><span>Total tagihan</span><b>${rp(s.total)}</b></div>
@@ -612,7 +612,7 @@ function showKejadian(id){
   ${s.lunas.length?`<div class="sec" style="margin:16px 0 8px"><h2>Lunas (${s.lunas.length})</h2></div><div class="list" style="margin:0">${s.lunas.map(t=>row(t,0)).join('')}</div>`:''}
   <button class="btn out block" style="margin-top:16px" onclick="batalKj('${esc(id)}')">Batalkan kejadian ini</button>`);
 }
-async function bayarT(tid,kid){try{await api('bayarTagihan',{ids:[tid],tanggal:todayStr()});await reload();render();showKejadian(kid);toast('Tercatat lunas, masuk kas');}catch(e){toast(e.message);}}
+async function bayarT(tid,kid){try{const j=await api('bayarTagihan',{ids:[tid],tanggal:todayStr()});await reload();render();showKejadian(kid);toast(j.wa==='terkirim'?'Lunas. Bukti terkirim ke WhatsApp':j.wa==='gagal'?'Lunas, tetapi kirim WA otomatis gagal':'Tercatat lunas, masuk kas');}catch(e){toast(e.message);}}
 async function batalT(tid,kid){try{await api('batalBayar',{id:tid});await reload();render();showKejadian(kid);toast('Pembayaran dibatalkan');}catch(e){toast(e.message);}}
 function formCair(id){
   const k=KJ().find(x=>x.ID===id),s=kjStat(k),tal=Math.max(0,s.santunan-s.terkumpul);
@@ -644,7 +644,7 @@ function vIuran(){
   const total=paid.reduce((x,i)=>x+Number(i.Jumlah),0),due=paid.length+bb.length,pct=due?Math.round(paid.length/due*100):0;
   const body=fIuran.tab==='belum'
     ?(bb.length?`<div class="list">${bb.map(a=>{const wa=waLink(a.WA,remindText(a,b,t));return `<div class="item"><div class="av">${esc(initials(a.Nama))}</div><div class="mid"><b>${esc(a.Nama)}</b><small>${esc(a['No Anggota']||'')}${(a._t||[]).length>1?' · tunggak '+a._t.length+' bln':''}</small></div><div class="end" style="flex-direction:row;gap:6px">${wa?`<a class="ib dark" target="_blank" rel="noopener" href="${wa}" aria-label="Ingatkan lewat WhatsApp" style="color:#1faa59">${ic('chat','sm')}</a>`:''}<button class="btn sm" onclick="formIuran('${esc(a.ID)}',${b},${t})">Bayar</button></div></div>`;}).join('')}</div>`:empty('check','Semua anggota sudah membayar 🎉'))
-    :(paid.length?`<div class="list">${paid.map(i=>`<div class="item"><div class="av">${ic('check','sm')}</div><div class="mid"><b>${esc(i.Nama)}</b><small>Dibayar ${esc(i['Tanggal Bayar'])}</small></div><div class="end" style="flex-direction:row;gap:8px;align-items:center"><span class="amt">${rp(i.Jumlah)}</span><button class="ib dark" style="width:36px;height:36px" onclick="buktiIuran('${esc(i.ID)}')" aria-label="Bagikan bukti">${ic('share','sm')}</button><button class="ib dark" style="width:36px;height:36px" onclick="hapusIuran('${esc(i.ID)}')" aria-label="Hapus">${ic('trash','sm')}</button></div></div>`).join('')}</div>`:empty('inbox','Belum ada pembayaran bulan ini'));
+    :(paid.length?`<div class="list">${paid.map(i=>`<div class="item"><div class="av">${ic('check','sm')}</div><div class="mid"><b>${esc(i.Nama)}</b><small>Dibayar ${esc(i['Tanggal Bayar'])}</small></div><div class="end" style="flex-direction:row;gap:8px;align-items:center"><span class="amt">${rp(i.Jumlah)}</span><a class="ib dark" target="_blank" rel="noopener" href="${waBuktiI([i.ID])}" aria-label="Kirim bukti via WhatsApp" style="width:36px;height:36px;color:#1faa59">${ic('chat','sm')}</a><button class="ib dark" style="width:36px;height:36px" onclick="buktiIuran('${esc(i.ID)}')" aria-label="Bagikan bukti">${ic('share','sm')}</button><button class="ib dark" style="width:36px;height:36px" onclick="hapusIuran('${esc(i.ID)}')" aria-label="Hapus">${ic('trash','sm')}</button></div></div>`).join('')}</div>`:empty('inbox','Belum ada pembayaran bulan ini'));
   $('page').innerHTML=`<div class="pad">${mnav(fIuran,'iuranShift')}
   <div class="card"><div class="row2" style="align-items:center;margin-bottom:10px"><div><small style="color:var(--mu)">Terkumpul</small><div style="font-size:22px;font-weight:800">${rp(total)}</div></div><div style="text-align:right"><small style="color:var(--mu)">Lunas</small><div style="font-size:22px;font-weight:800">${paid.length}/${due}</div></div></div><div class="prog"><i style="width:${pct}%"></i></div></div>
   <div class="chips"><button class="chip ${fIuran.tab==='belum'?'on':''}" onclick="setIT('belum')">Belum bayar (${bb.length})</button><button class="chip ${fIuran.tab==='sudah'?'on':''}" onclick="setIT('sudah')">Sudah bayar (${paid.length})</button></div>${body}</div>`;
@@ -659,7 +659,7 @@ function formIuran(anggotaId,b,t){
     {k:'Jumlah Bulan',label:'Bayar untuk berapa bulan?',type:'select',value:1,options:Array.from({length:12},(_,i)=>[i+1,(i+1)+' bulan']),hint:'Pilih lebih dari 1 bila anggota membayar di muka atau melunasi tunggakan.'},
     {k:'Jumlah',label:'Jumlah per bulan (Rp)',type:'number',value:iuranBln()},
     {k:'Tanggal Bayar',label:'Tanggal bayar',type:'date',value:todayStr()}
-  ],async d=>{const j=await api('saveIuran',{data:d});return j.added+' bulan iuran tercatat'+(j.skipped?` (${j.skipped} sudah lunas, dilewati)`:'');});
+  ],async d=>{const j=await api('saveIuran',{data:d});window.afterSave=j.wa==='terkirim'?()=>toast('Bukti terkirim otomatis ke WhatsApp anggota'):()=>{waBukti(j.ids||[]);if(j.wa==='gagal')toast('Kirim otomatis gagal. Kirim manual lewat tombol ini.');};return j.added+' bulan iuran tercatat'+(j.skipped?` (${j.skipped} sudah lunas, dilewati)`:'');});
 }
 function hapusIuran(id){ask('Hapus catatan iuran?','Transaksi kas yang terkait ikut terhapus.','Hapus',()=>api('deleteIuran',{id}));}
 
@@ -736,6 +736,8 @@ function vAkun(){
     <label>Iuran santunan per jiwa (Rp)</label><input name="Iuran Santunan" type="number" inputmode="numeric" min="0" value="${esc(p['Iuran Santunan'])}">
     <label>Persen santunan untuk keluarga duka (%)</label><input name="Persen Santunan" type="number" inputmode="numeric" min="1" max="100" value="${esc(p['Persen Santunan']||95)}"><p class="note" style="margin:4px 0 0">Sisanya otomatis menjadi bagian kas.</p>
     <label>No. WhatsApp pengurus</label><input name="Kontak Pengurus" type="tel" inputmode="tel" value="${esc(p['Kontak Pengurus'])}">
+    <label>Kirim bukti otomatis via WhatsApp (Fonnte)</label><select name="WA Otomatis"><option value="0">Nonaktif</option><option value="1" ${p['WA Otomatis']==='1'?'selected':''}>Aktif</option></select>
+    <label>Token Fonnte${S.fonnteSet?' (sudah tersimpan, kosongkan bila tidak diganti)':''}</label><input name="Fonnte Token" type="password" autocomplete="off">
     <label>PIN baru (kosongkan bila tidak diganti)</label><input name="PIN Admin" type="password" inputmode="numeric" autocomplete="new-password" placeholder="6–12 digit angka">
     <p class="msg" id="setErr"></p>
     <button class="btn block" id="setOk">Simpan Pengaturan</button>
@@ -764,6 +766,26 @@ function pinCard(){
   return S.wajibGantiPin?`<div class="card" style="margin:14px 16px 0;background:var(--redbg);color:var(--red)"><b>PIN masih bawaan</b><p class="note" style="margin:4px 0 10px;color:inherit">Ganti PIN agar data serikat aman.</p><button class="btn red sm" onclick="go('akun')">Ganti PIN</button></div>`:'';
 }
 function batalKj(id){ask('Batalkan kejadian wafat?','Semua tagihan, pembayaran, dan pencairan santunan kejadian ini dihapus, saldo kas dikoreksi, dan data anggota dipulihkan.','Batalkan',()=>api('hapusKejadian',{id}));}
+
+/* ---------- KIRIM BUKTI VIA WA ---------- */
+function waBuktiI(ids){
+  const L=ids.map(id=>S.iuran.find(x=>x.ID===id)).filter(Boolean);if(!L.length)return '';
+  const a=S.anggota.find(x=>x.ID===L[0]['ID Anggota'])||{};
+  const tot=L.reduce((s,i)=>s+Number(i.Jumlah),0);
+  return waLink(a.WA,`*BUKTI PEMBAYARAN ${nm()}*\nNo. Bukti: ${L.map(i=>noBukti(i.ID)).join(', ')}\nNama: ${L[0].Nama} (${a['No Anggota']||'-'})\nIuran bulanan: ${L.map(i=>bl(i.Bulan,i.Tahun)).join(', ')}\nTanggal bayar: ${L[0]['Tanggal Bayar']}\nJumlah: ${rp(tot)}\nStatus: LUNAS ✅\n\nTerima kasih 🙏`);
+}
+function waBuktiS(t){
+  const k=KJ().find(x=>x.ID===t['ID Kejadian'])||{},a=S.anggota.find(x=>x.ID===t['ID Anggota'])||{};
+  return waLink(a.WA,`*BUKTI PEMBAYARAN ${nm()}*\nNo. Bukti: ${noBukti(t.ID)}\nNama: ${t.Nama} (${a['No Anggota']||'-'})\nIuran santunan wafat ${k.Nama}: ${t.Jiwa} jiwa × ${rp(k.Tarif)}\nTanggal bayar: ${t['Tanggal Bayar']}\nJumlah: ${rp(t.Nominal)}\nStatus: LUNAS ✅\n\nTerima kasih 🙏`);
+}
+function waBukti(ids){
+  const L=ids.map(id=>S.iuran.find(x=>x.ID===id)).filter(Boolean);if(!L.length)return;
+  const link=waBuktiI(ids),tot=L.reduce((s,i)=>s+Number(i.Jumlah),0);
+  sheet('Pembayaran tercatat',`<p style="margin:6px 0 14px"><b>${esc(L[0].Nama)}</b>: ${L.map(i=>bl(i.Bulan,i.Tahun)).join(', ')} · ${rp(tot)}</p>
+  ${link?`<a class="btn wa block" target="_blank" rel="noopener" href="${link}" style="text-decoration:none" onclick="closeSheet()">${ic('chat','sm')} Kirim bukti ke WhatsApp anggota</a>`:`<p class="note">Anggota ini belum punya nomor WhatsApp.</p>`}
+  ${L.length===1?`<button class="btn out block" style="margin-top:10px" onclick="closeSheet();buktiIuran('${esc(L[0].ID)}')">${ic('share','sm')} Bagikan sebagai gambar</button>`:''}
+  <button class="btn out block" style="margin-top:10px" onclick="closeSheet()">Lewati</button>`);
+}
 
 /* ---------- BUKTI PEMBAYARAN (gambar PNG) ---------- */
 const noBukti=id=>'BKT-'+String(id).replace(/[^A-Za-z0-9]/g,'').slice(-6).toUpperCase();
