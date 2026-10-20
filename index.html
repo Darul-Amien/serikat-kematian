@@ -545,7 +545,7 @@ function showAnggota(id){
     <div class="kv"><span>Status</span><b><span class="badge ${esc(a.Status)}">${esc(a.Status)}</span></b></div>
     <div class="kv"><span>WhatsApp</span><b>${esc(a.WA||'-')}</b></div>
     <div class="kv"><span>Bergabung</span><b>${esc(a['Tanggal Masuk'])}</b></div>
-    <div class="kv"><span>Tanggungan</span><b>${esc(a.Tanggungan||0)}</b></div>
+    <div class="kv"><span>Tanggungan</span><b>${esc(a.Tanggungan||0)}${a['Nama Tanggungan']?'<br><small style="font-weight:400;color:var(--mu)">'+esc(String(a['Nama Tanggungan']).split('\n').join(', '))+'</small>':''}</b></div>
     ${a.Catatan?`<div class="kv"><span>Catatan</span><b>${esc(a.Catatan)}</b></div>`:''}
     <div class="kv"><span>Tunggakan</span><b class="${t.length?'out':'in'}">${t.length?t.length+' bulan ('+rp(t.length*iuranBln())+')':'Lunas'}</b></div>
   </div>
@@ -564,7 +564,8 @@ function formAnggota(id){
     {k:'Nama',label:'Nama lengkap',value:a.Nama},
     {k:'WA',label:'No. WhatsApp',type:'tel',value:a.WA,hint:'Dipakai untuk pengingat iuran dan verifikasi cek kepesertaan.'},
     {k:'Tanggal Masuk',label:'Tanggal masuk',type:'date',value:a['Tanggal Masuk']},
-    {k:'Tanggungan',label:'Jumlah tanggungan',type:'number',value:a.Tanggungan},
+    {k:'Nama Tanggungan',label:'Nama tanggungan (satu nama per baris)',type:'textarea',value:a['Nama Tanggungan'],hint:'Istri/suami, anak, orang tua, dll. Jumlah tanggungan dihitung otomatis dari daftar ini.'},
+    {k:'Tanggungan',label:'Jumlah tanggungan',type:'number',value:a.Tanggungan,hint:'Isi hanya bila daftar nama di atas dikosongkan.'},
     {k:'Status',label:'Status',type:'select',value:a.Status,options:[['Aktif','Aktif'],['Nonaktif','Nonaktif'],['Wafat','Wafat']]},
     {k:'Catatan',label:'Catatan',type:'textarea',value:a.Catatan}
   ],async d=>{if(id)d.ID=id;await api('saveAnggota',{data:d});});
@@ -622,9 +623,12 @@ function formWafat(id){
   openForm('Catat Wafat',[
     {k:'anggotaId',label:'Kepala keluarga (anggota)',type:'select',value:id||aktif[0].ID,options:aktif.map(a=>[a.ID,a.Nama+' ('+(a['No Anggota']||'-')+')'])},
     {k:'yang',label:'Yang wafat',type:'select',value:'Kepala keluarga',options:[['Kepala keluarga','Kepala keluarga'],['Tanggungan','Anggota tanggungan']]},
-    {k:'namaWafat',label:'Nama yang wafat (opsional)',value:'',hint:'Kosongkan bila kepala keluarga. Tagihan dibuat otomatis untuk semua KK aktif lain: jiwa × tarif santunan.'},
+    {k:'namaWafat',label:'Nama yang wafat',value:'',hint:''},
     {k:'tanggal',label:'Tanggal wafat',type:'date',value:todayStr()}
   ],async d=>{const j=await api('kejadian',d);return `Tagihan dibuat untuk ${j.kk} KK (total ${rp(j.total)})`;},'Buat Tagihan');
+  const f=$('frm'),sel=f.elements.anggotaId,hint=f.elements.namaWafat.nextElementSibling;
+  const upd=()=>{const a=S.anggota.find(x=>x.ID===sel.value)||{},l=String(a['Nama Tanggungan']||'').split('\n').filter(Boolean);hint.textContent=(l.length?'Tanggungan terdaftar: '+l.join(', ')+'. ':'')+'Wajib diisi bila tanggungan yang wafat; kosongkan bila kepala keluarga. Tagihan dibuat otomatis untuk semua KK aktif lain.';};
+  sel.onchange=upd;upd();
 }
 
 
