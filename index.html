@@ -346,7 +346,9 @@ async function doCek(){
     renderCek(j.data);showScreen('cek');
   }catch(e){err.className='msg';err.textContent=e.message;}
 }
+let lastCek=null;
 function renderCek(d){
+  lastCek=d;
   const a=d.anggota,p=d.pengaturan||{},iur=Number(p['Iuran Bulanan'])||0,tg=d.tunggakan||[];
   let st;
   if(a.status==='Aktif'){
@@ -365,8 +367,9 @@ function renderCek(d){
     <div class="r"><div><small>Status</small><b>${esc(a.status)}</b></div><div><small>Bergabung</small><b>${esc(a.tanggalMasuk)}</b></div><div><small>Tanggungan</small><b>${esc(a.tanggungan||0)}</b></div></div></div>
   ${st}
   ${(d.tagihanSantunan||[]).map(x=>`<div class="stbox bad"><b>Iuran santunan wafat ${esc(x.nama)}</b>${esc(x.jiwa)} jiwa · ${rp(x.nominal)} belum dibayar</div>`).join('')}
-  <div class="sec" style="margin:18px 0 8px"><h2>Riwayat Pembayaran</h2></div>
-  <div class="list">${(d.riwayat||[]).length?d.riwayat.map(r=>`<div class="item"><div class="av">${ic('check','sm')}</div><div class="mid"><b>${BULAN[r.bulan-1]} ${esc(r.tahun)}</b><small>Dibayar ${esc(r.tanggal)}</small></div><div class="amt">${rp(r.jumlah)}</div></div>`).join(''):`<div class="empty">Belum ada pembayaran tercatat.</div>`}</div>
+  <div class="sec" style="margin:18px 0 8px"><h2>Riwayat Pembayaran</h2></div><p class="note" style="margin:0 0 8px">Ketuk salah satu untuk menyimpan bukti pembayaran.</p>
+  <div class="list">${(d.riwayat||[]).length?d.riwayat.map((r,n)=>`<button class="item" onclick="buktiCek('i',${n})"><div class="av">${ic('check','sm')}</div><div class="mid"><b>${BULAN[r.bulan-1]} ${esc(r.tahun)}</b><small>Dibayar ${esc(r.tanggal)}</small></div><div class="amt">${rp(r.jumlah)}</div></button>`).join(''):`<div class="empty">Belum ada pembayaran tercatat.</div>`}</div>
+  ${(d.santunanLunas||[]).length?`<div class="sec" style="margin:18px 0 8px"><h2>Iuran Santunan Lunas</h2></div><div class="list">${d.santunanLunas.map((r,n)=>`<button class="item" onclick="buktiCek('s',${n})"><div class="av">${ic('check','sm')}</div><div class="mid"><b>Wafat ${esc(r.nama)}</b><small>Dibayar ${esc(r.tanggal)}</small></div><div class="amt">${rp(r.nominal)}</div></button>`).join('')}</div>`:''}
   <div class="card" style="margin-top:14px"><div class="kv"><span>Iuran bulanan</span><b>${rp(iur)}</b></div><div class="kv"><span>Iuran santunan per jiwa</span><b>${rp(p['Iuran Santunan'])}</b></div></div>
   ${kontak?`<a class="btn wa block" target="_blank" rel="noopener" href="${kontak}" style="text-decoration:none">${ic('chat')} Hubungi Pengurus</a>`:''}`;
 }
@@ -596,7 +599,7 @@ function showKejadian(id){
   const k=KJ().find(x=>x.ID===id);if(!k)return;const s=kjStat(k);
   const row=(t,b)=>{const a=S.anggota.find(x=>x.ID===t['ID Anggota'])||{};
     const wa=waLink(a.WA,`Assalamualaikum ${t.Nama}, telah wafat ${k.Nama}. Iuran santunan ${nm()}: ${t.Jiwa} jiwa × ${rp(k.Tarif)} = ${rp(t.Nominal)}. Mohon dibayarkan ke pengurus. Terima kasih 🙏`);
-    return `<div class="item" style="cursor:default"><div class="mid"><b>${esc(t.Nama)}</b><small>${esc(t.Jiwa)} jiwa · ${rp(t.Nominal)}</small></div><div class="end" style="flex-direction:row;gap:6px">${b?`${wa?`<a class="ib dark" target="_blank" rel="noopener" href="${wa}" aria-label="Tagih via WhatsApp" style="color:#1faa59">${ic('chat','sm')}</a>`:''}<button class="btn sm" onclick="bayarT('${esc(t.ID)}','${esc(id)}')">Lunas</button>`:`<button class="ib dark" style="width:36px;height:36px" onclick="batalT('${esc(t.ID)}','${esc(id)}')" aria-label="Batalkan pembayaran">${ic('x','sm')}</button>`}</div></div>`;};
+    return `<div class="item" style="cursor:default"><div class="mid"><b>${esc(t.Nama)}</b><small>${esc(t.Jiwa)} jiwa · ${rp(t.Nominal)}</small></div><div class="end" style="flex-direction:row;gap:6px">${b?`${wa?`<a class="ib dark" target="_blank" rel="noopener" href="${wa}" aria-label="Tagih via WhatsApp" style="color:#1faa59">${ic('chat','sm')}</a>`:''}<button class="btn sm" onclick="bayarT('${esc(t.ID)}','${esc(id)}')">Lunas</button>`:`<button class="ib dark" style="width:36px;height:36px" onclick="buktiSantunan('${esc(t.ID)}')" aria-label="Bagikan bukti">${ic('share','sm')}</button><button class="ib dark" style="width:36px;height:36px" onclick="batalT('${esc(t.ID)}','${esc(id)}')" aria-label="Batalkan pembayaran">${ic('x','sm')}</button>`}</div></div>`;};
   sheet('Wafat: '+k.Nama,`<div class="card" style="box-shadow:none;border:1px solid var(--ln);margin-top:6px">
     <div class="kv"><span>Tanggal</span><b>${esc(k.Tanggal)}</b></div>
     <div class="kv"><span>Total tagihan</span><b>${rp(s.total)}</b></div>
@@ -641,7 +644,7 @@ function vIuran(){
   const total=paid.reduce((x,i)=>x+Number(i.Jumlah),0),due=paid.length+bb.length,pct=due?Math.round(paid.length/due*100):0;
   const body=fIuran.tab==='belum'
     ?(bb.length?`<div class="list">${bb.map(a=>{const wa=waLink(a.WA,remindText(a,b,t));return `<div class="item"><div class="av">${esc(initials(a.Nama))}</div><div class="mid"><b>${esc(a.Nama)}</b><small>${esc(a['No Anggota']||'')}${(a._t||[]).length>1?' · tunggak '+a._t.length+' bln':''}</small></div><div class="end" style="flex-direction:row;gap:6px">${wa?`<a class="ib dark" target="_blank" rel="noopener" href="${wa}" aria-label="Ingatkan lewat WhatsApp" style="color:#1faa59">${ic('chat','sm')}</a>`:''}<button class="btn sm" onclick="formIuran('${esc(a.ID)}',${b},${t})">Bayar</button></div></div>`;}).join('')}</div>`:empty('check','Semua anggota sudah membayar 🎉'))
-    :(paid.length?`<div class="list">${paid.map(i=>`<div class="item"><div class="av">${ic('check','sm')}</div><div class="mid"><b>${esc(i.Nama)}</b><small>Dibayar ${esc(i['Tanggal Bayar'])}</small></div><div class="end" style="flex-direction:row;gap:8px;align-items:center"><span class="amt">${rp(i.Jumlah)}</span><button class="ib dark" style="width:36px;height:36px" onclick="hapusIuran('${esc(i.ID)}')" aria-label="Hapus">${ic('trash','sm')}</button></div></div>`).join('')}</div>`:empty('inbox','Belum ada pembayaran bulan ini'));
+    :(paid.length?`<div class="list">${paid.map(i=>`<div class="item"><div class="av">${ic('check','sm')}</div><div class="mid"><b>${esc(i.Nama)}</b><small>Dibayar ${esc(i['Tanggal Bayar'])}</small></div><div class="end" style="flex-direction:row;gap:8px;align-items:center"><span class="amt">${rp(i.Jumlah)}</span><button class="ib dark" style="width:36px;height:36px" onclick="buktiIuran('${esc(i.ID)}')" aria-label="Bagikan bukti">${ic('share','sm')}</button><button class="ib dark" style="width:36px;height:36px" onclick="hapusIuran('${esc(i.ID)}')" aria-label="Hapus">${ic('trash','sm')}</button></div></div>`).join('')}</div>`:empty('inbox','Belum ada pembayaran bulan ini'));
   $('page').innerHTML=`<div class="pad">${mnav(fIuran,'iuranShift')}
   <div class="card"><div class="row2" style="align-items:center;margin-bottom:10px"><div><small style="color:var(--mu)">Terkumpul</small><div style="font-size:22px;font-weight:800">${rp(total)}</div></div><div style="text-align:right"><small style="color:var(--mu)">Lunas</small><div style="font-size:22px;font-weight:800">${paid.length}/${due}</div></div></div><div class="prog"><i style="width:${pct}%"></i></div></div>
   <div class="chips"><button class="chip ${fIuran.tab==='belum'?'on':''}" onclick="setIT('belum')">Belum bayar (${bb.length})</button><button class="chip ${fIuran.tab==='sudah'?'on':''}" onclick="setIT('sudah')">Sudah bayar (${paid.length})</button></div>${body}</div>`;
@@ -761,6 +764,31 @@ function pinCard(){
   return S.wajibGantiPin?`<div class="card" style="margin:14px 16px 0;background:var(--redbg);color:var(--red)"><b>PIN masih bawaan</b><p class="note" style="margin:4px 0 10px;color:inherit">Ganti PIN agar data serikat aman.</p><button class="btn red sm" onclick="go('akun')">Ganti PIN</button></div>`:'';
 }
 function batalKj(id){ask('Batalkan kejadian wafat?','Semua tagihan, pembayaran, dan pencairan santunan kejadian ini dihapus, saldo kas dikoreksi, dan data anggota dipulihkan.','Batalkan',()=>api('hapusKejadian',{id}));}
+
+/* ---------- BUKTI PEMBAYARAN (gambar PNG) ---------- */
+const noBukti=id=>'BKT-'+String(id).replace(/[^A-Za-z0-9]/g,'').slice(-6).toUpperCase();
+function bukti(o){
+  const W=720,H=800,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d'),F='system-ui,Segoe UI,Roboto,sans-serif';
+  x.fillStyle='#fff';x.fillRect(0,0,W,H);
+  const g=x.createLinearGradient(0,0,W,180);g.addColorStop(0,'#0a9b6a');g.addColorStop(1,'#0e6ba8');x.fillStyle=g;x.fillRect(0,0,W,170);
+  x.fillStyle='#fff';x.font='bold 34px '+F;x.fillText(nm(),40,78,W-80);x.font='24px '+F;x.fillText('BUKTI PEMBAYARAN',40,124);
+  const rows=[['No. Bukti',o.no],['Tanggal',o.tanggal],['Nama',o.nama],['No. Anggota',o.noAnggota],['Untuk',o.untuk],['Rincian',o.rincian]];
+  rows.forEach((r,i)=>{const y=235+i*62;x.fillStyle='#6a7b87';x.font='22px '+F;x.fillText(r[0],40,y);x.fillStyle='#17252e';x.font='bold 24px '+F;x.fillText(String(r[1]||'-'),250,y,430);x.fillStyle='#e4ebf0';x.fillRect(40,y+20,640,2);});
+  x.fillStyle='#e3f6ec';x.beginPath();x.roundRect(40,630,640,100,18);x.fill();
+  x.fillStyle='#12844f';x.font='bold 22px '+F;x.fillText('LUNAS',64,672);x.font='bold 40px '+F;x.textAlign='right';x.fillText(rp(o.jumlah),656,706);x.textAlign='left';
+  x.fillStyle='#6a7b87';x.font='18px '+F;x.fillText('Dibuat dari catatan resmi pengurus. Simpan sebagai bukti.',40,775,640);
+  c.toBlob(async b=>{
+    const f=new File([b],o.no+'.png',{type:'image/png'});
+    try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Bukti pembayaran '+o.no});return;}}catch(e){if(e&&e.name==='AbortError')return;}
+    const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=o.no+'.png';document.body.appendChild(a);a.click();a.remove();toast('Bukti disimpan ke perangkat');
+  });
+}
+function buktiIuran(id){const i=S.iuran.find(x=>x.ID===id);if(!i)return;const a=S.anggota.find(x=>x.ID===i['ID Anggota'])||{};
+  bukti({no:noBukti(i.ID),tanggal:i['Tanggal Bayar'],nama:i.Nama,noAnggota:a['No Anggota'],untuk:'Iuran bulanan',rincian:BULAN[i.Bulan-1]+' '+i.Tahun,jumlah:i.Jumlah});}
+function buktiSantunan(tid){const t=TG().find(x=>x.ID===tid);if(!t)return;const k=KJ().find(x=>x.ID===t['ID Kejadian'])||{},a=S.anggota.find(x=>x.ID===t['ID Anggota'])||{};
+  bukti({no:noBukti(t.ID),tanggal:t['Tanggal Bayar'],nama:t.Nama,noAnggota:a['No Anggota'],untuk:'Iuran santunan kematian',rincian:`Wafat ${k.Nama} · ${t.Jiwa} jiwa × ${rp(k.Tarif)}`,jumlah:t.Nominal});}
+function buktiCek(t,n){const d=lastCek;if(!d)return;const a=d.anggota,i=t==='i';const r=i?d.riwayat[n]:d.santunanLunas[n];if(!r)return;
+  bukti({no:noBukti(r.id),tanggal:r.tanggal,nama:a.nama,noAnggota:a.noAnggota,untuk:i?'Iuran bulanan':'Iuran santunan kematian',rincian:i?BULAN[r.bulan-1]+' '+r.tahun:`Wafat ${r.nama} · ${r.jiwa} jiwa`,jumlah:i?r.jumlah:r.nominal});}
 
 /* ---------- mulai ---------- */
 $('pin').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
