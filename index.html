@@ -205,11 +205,11 @@ dialog.sheet::backdrop{background:rgba(10,30,40,.5)}
     <div id="pCek">
       <label for="cNo">Nomor Anggota</label>
       <input id="cNo" placeholder="contoh: SK-0001" autocapitalize="characters" autocomplete="off">
-      <label for="cWa">4 digit terakhir No. WhatsApp</label>
-      <input id="cWa" inputmode="numeric" maxlength="4" placeholder="••••" autocomplete="off">
+      <label for="cWa">Kode rahasia (6 karakter)</label>
+      <input id="cWa" maxlength="6" placeholder="contoh: K7M2QX" autocapitalize="characters" autocomplete="off">
       <div style="margin-top:16px"><button class="btn block" onclick="doCek()">Cek Status Saya</button></div>
       <p class="msg" id="cekErr"></p>
-      <p class="note">Nomor anggota tertera di kartu anggota atau tanyakan kepada pengurus.</p>
+      <p class="note">Nomor dan kode rahasia dikirim pengurus. Tanyakan kepada pengurus bila belum menerimanya.</p>
     </div>
     <div id="pAdm" class="hide">
       <label for="pin">PIN Pengurus</label>
@@ -310,7 +310,7 @@ async function api(action,payload={}){
     let j;
     try{j=JSON.parse(await res.text());}
     catch(e){throw new Error('Server tidak mengembalikan JSON. Cek URL /exec dan deploy ulang sebagai versi baru.');}
-    if(j.auth===false){logout(true);throw new Error(j.error);}
+    if(j.auth===false){logout(true);toast(j.error);throw new Error(j.error);}
     if(!j.ok)throw new Error(j.error||'Terjadi kesalahan');
     return j;
   }finally{busy(-1);}
@@ -335,12 +335,12 @@ function setName(n){if(!n)return;$('aName').textContent=n;document.title=n;}
 
 /* ---------- cek kepesertaan (publik) ---------- */
 async function doCek(){
-  const no=$('cNo').value.trim(),wa4=$('cWa').value.trim(),err=$('cekErr');
+  const no=$('cNo').value.trim(),kode=$('cWa').value.trim(),err=$('cekErr');
   err.className='msg';err.textContent='';
-  if(!no||wa4.length!==4){err.textContent='Isi nomor anggota dan 4 digit terakhir WhatsApp.';return;}
+  if(!no||kode.length!==6){err.textContent='Isi nomor anggota dan kode rahasia 6 karakter.';return;}
   err.className='msg mu';err.textContent='Memeriksa…';
   try{
-    const j=await api('cek',{no,wa4});
+    const j=await api('cek',{no,kode});
     ls.set('sk_no',no);
     err.textContent='';
     renderCek(j.data);showScreen('cek');
@@ -383,6 +383,7 @@ async function doLogin(){
     await reload();
     $('pin').value='';err.textContent='';
     enterApp();
+    if(j.ganti){go('akun');toast('PIN masih bawaan. Ganti dulu di menu Akun.');}
   }catch(e){err.className='msg';err.textContent=e.message;}
 }
 function enterApp(){
@@ -393,6 +394,7 @@ function enterApp(){
   render();
 }
 function logout(silent){
+  if(!silent&&token)api('logout').catch(()=>{});
   token='';ls.del('sk_token');ls.del('sk_cache');S=emptyS();
   closeSheet();showScreen('auth');authTab(silent?'adm':'cek');
   history.replaceState(null,'',location.pathname);
@@ -499,7 +501,7 @@ function vBeranda(){
   ${!S.anggota.length?`<div class="card" style="margin:14px 16px 0"><b>Selamat datang!</b><p class="note" style="margin:6px 0 12px">Mulai dengan menambahkan anggota pertama. Nomor anggota dibuat otomatis.</p><button class="btn block" onclick="formAnggota()">${ic('plus')} Tambah Anggota</button></div>`:`
   <div class="stats" style="margin:14px 16px 0"><div class="stat"><small>Anggota aktif</small><b>${aktif}</b></div><div class="stat"><small>Menunggak</small><b class="${tg.length?'out':''}">${tg.length} orang</b></div></div>`}
   ${tg.length?`<div class="sec"><h2>Perlu ditagih</h2><a onclick="go('tunggakan')">Lihat semua</a></div><div class="list">${tg.slice(0,3).map(a=>tgItem(a)).join('')}</div>`:''}
-  ${talanganCard()}
+  ${pinCard()}${talanganCard()}
   <div class="sec"><h2>Aktivitas kas terakhir</h2><a onclick="go('kas')">Semua</a></div>
   <div class="list">${last.length?last.map(kasItem).join(''):empty('inbox','Belum ada transaksi')}</div>`;
 }
@@ -539,6 +541,7 @@ function showAnggota(id){
   sheet(a.Nama,`
   <div class="card" style="box-shadow:none;border:1px solid var(--ln);margin-top:6px">
     <div class="kv"><span>No. Anggota</span><b>${esc(a['No Anggota']||'-')}</b></div>
+    <div class="kv"><span>Kode rahasia</span><b>${esc(a.Kode||'-')}</b></div>
     <div class="kv"><span>Status</span><b><span class="badge ${esc(a.Status)}">${esc(a.Status)}</span></b></div>
     <div class="kv"><span>WhatsApp</span><b>${esc(a.WA||'-')}</b></div>
     <div class="kv"><span>Bergabung</span><b>${esc(a['Tanggal Masuk'])}</b></div>
@@ -551,6 +554,7 @@ function showAnggota(id){
     ${wa&&a.Status==='Aktif'?`<a class="btn wa" target="_blank" rel="noopener" href="${wa}" style="text-decoration:none">${ic('chat','sm')} Ingatkan WA</a>`:''}
     <button class="btn out" onclick="closeSheet();formAnggota('${esc(a.ID)}')">${ic('edit','sm')} Ubah</button>
     ${a.Status==='Aktif'?`<button class="btn out" onclick="closeSheet();formWafat('${esc(a.ID)}')">${ic('heart','sm')} Catat Wafat</button>`:''}
+    ${a.WA&&a.Kode?`<a class="btn out" style="grid-column:1/-1;text-decoration:none" target="_blank" rel="noopener" href="${waLink(a.WA,`Assalamualaikum ${a.Nama}, kartu anggota ${nm()}: No. ${a['No Anggota']}, kode rahasia ${a.Kode}. Cek status iuran Anda di: ${location.href.split('#')[0]} (jangan bagikan kode ini).`)}">${ic('share','sm')} Kirim kartu anggota via WA</a>`:''}
     <button class="btn red" style="grid-column:1/-1" onclick="hapusAnggota('${esc(a.ID)}')">${ic('trash','sm')} Hapus Anggota</button>
   </div>`);
 }
@@ -601,7 +605,8 @@ function showKejadian(id){
     <div class="kv"><span>Talangan kas</span><b class="${s.talangan?'out':''}">${rp(s.talangan)}</b></div></div>
   ${!s.cair?`<button class="btn block" onclick="closeSheet();formCair('${esc(id)}')">Cairkan santunan ${rp(s.santunan)}</button>`:`<p class="note">Dicairkan ${esc(k['Tanggal Cair'])}: ${rp(s.cair)}</p>`}
   <div class="sec" style="margin:16px 0 8px"><h2>Belum bayar (${s.belum.length})</h2></div><div class="list" style="margin:0">${s.belum.length?s.belum.map(t=>row(t,1)).join(''):empty('check','Semua sudah lunas')}</div>
-  ${s.lunas.length?`<div class="sec" style="margin:16px 0 8px"><h2>Lunas (${s.lunas.length})</h2></div><div class="list" style="margin:0">${s.lunas.map(t=>row(t,0)).join('')}</div>`:''}`);
+  ${s.lunas.length?`<div class="sec" style="margin:16px 0 8px"><h2>Lunas (${s.lunas.length})</h2></div><div class="list" style="margin:0">${s.lunas.map(t=>row(t,0)).join('')}</div>`:''}
+  <button class="btn out block" style="margin-top:16px" onclick="batalKj('${esc(id)}')">Batalkan kejadian ini</button>`);
 }
 async function bayarT(tid,kid){try{await api('bayarTagihan',{ids:[tid],tanggal:todayStr()});await reload();render();showKejadian(kid);toast('Tercatat lunas, masuk kas');}catch(e){toast(e.message);}}
 async function batalT(tid,kid){try{await api('batalBayar',{id:tid});await reload();render();showKejadian(kid);toast('Pembayaran dibatalkan');}catch(e){toast(e.message);}}
@@ -724,7 +729,7 @@ function vAkun(){
     <label>Iuran santunan per jiwa (Rp)</label><input name="Iuran Santunan" type="number" inputmode="numeric" min="0" value="${esc(p['Iuran Santunan'])}">
     <label>Persen santunan untuk keluarga duka (%)</label><input name="Persen Santunan" type="number" inputmode="numeric" min="1" max="100" value="${esc(p['Persen Santunan']||95)}"><p class="note" style="margin:4px 0 0">Sisanya otomatis menjadi bagian kas.</p>
     <label>No. WhatsApp pengurus</label><input name="Kontak Pengurus" type="tel" inputmode="tel" value="${esc(p['Kontak Pengurus'])}">
-    <label>PIN baru (kosongkan bila tidak diganti)</label><input name="PIN Admin" type="password" inputmode="numeric" autocomplete="new-password" placeholder="4–12 digit angka">
+    <label>PIN baru (kosongkan bila tidak diganti)</label><input name="PIN Admin" type="password" inputmode="numeric" autocomplete="new-password" placeholder="6–12 digit angka">
     <p class="msg" id="setErr"></p>
     <button class="btn block" id="setOk">Simpan Pengaturan</button>
   </form></div>
@@ -747,6 +752,11 @@ async function copyLink(){
 }
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferredInstall=e;if(view==='akun'&&!$('app').classList.contains('hide'))vAkun();});
 async function installApp(){if(!deferredInstall)return;deferredInstall.prompt();try{await deferredInstall.userChoice;}catch(e){}deferredInstall=null;if(view==='akun')vAkun();}
+
+function pinCard(){
+  return S.wajibGantiPin?`<div class="card" style="margin:14px 16px 0;background:var(--redbg);color:var(--red)"><b>PIN masih bawaan</b><p class="note" style="margin:4px 0 10px;color:inherit">Ganti PIN agar data serikat aman.</p><button class="btn red sm" onclick="go('akun')">Ganti PIN</button></div>`:'';
+}
+function batalKj(id){ask('Batalkan kejadian wafat?','Semua tagihan, pembayaran, dan pencairan santunan kejadian ini dihapus, saldo kas dikoreksi, dan data anggota dipulihkan.','Batalkan',()=>api('hapusKejadian',{id}));}
 
 /* ---------- mulai ---------- */
 $('pin').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
