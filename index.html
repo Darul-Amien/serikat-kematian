@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Serikat Kematian</title>
+<style>
+  :root{--bg:#f4f6f8;--card:#fff;--text:#1f2933;--muted:#6b7785;--primary:#0f766e;--primary-d:#0b5d57;--danger:#c0392b;--line:#e3e8ee;--ok:#1e8e4e}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:15px}
+  header{background:var(--primary);color:#fff;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:5}
+  header h1{margin:0;font-size:17px}
+  main{max-width:960px;margin:0 auto;padding:14px}
+  nav{display:flex;gap:6px;overflow-x:auto;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:46px;z-index:4}
+  nav button{border:0;background:#eef2f5;padding:8px 14px;border-radius:20px;cursor:pointer;white-space:nowrap;font-size:14px}
+  nav button.active{background:var(--primary);color:#fff}
+  .card{background:var(--card);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .stat{background:var(--card);border-radius:12px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+  .stat small{color:var(--muted)}.stat b{display:block;font-size:19px;margin-top:4px}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);font-size:14px;vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase}
+  .tw{overflow-x:auto}
+  .btn{border:0;background:var(--primary);color:#fff;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:14px}
+  .btn:hover{background:var(--primary-d)}
+  .btn.sec{background:#e5eaef;color:var(--text)}.btn.dng{background:var(--danger)}
+  .btn.sm{padding:4px 9px;font-size:12px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  .row .grow{flex:1;min-width:140px}
+  input,select,textarea{width:100%;padding:9px;border:1px solid #cfd7df;border-radius:8px;font-size:15px;font-family:inherit;background:#fff}
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  .in{color:var(--ok)}.out{color:var(--danger)}
+  .badge{padding:2px 8px;border-radius:10px;font-size:12px;background:#e5eaef}
+  .badge.Aktif{background:#d6f3e1;color:#146c39}.badge.Wafat{background:#f3d6d6;color:#8a1f1f}.badge.Nonaktif{background:#eee;color:#555}
+  dialog{border:0;border-radius:14px;padding:18px;width:min(440px,94vw)}
+  dialog::backdrop{background:rgba(0,0,0,.4)}
+  #login{max-width:340px;margin:12vh auto;padding:0 16px}
+  #toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:8px;display:none;z-index:99;max-width:90vw}
+  .muted{color:var(--muted)}
+  h3{margin:0 0 10px;font-size:16px}
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <div class="card">
+    <h3 id="loginTitle">Serikat Kematian</h3>
+    <p class="muted">Masukkan PIN admin untuk melanjutkan.</p>
+    <label>PIN</label>
+    <input id="pin" type="password" inputmode="numeric" autocomplete="current-password">
+    <div style="margin-top:14px"><button class="btn" style="width:100%" onclick="doLogin()">Masuk</button></div>
+  </div>
+</div>
+
+<!-- APLIKASI -->
+<div id="app" class="hide">
+  <header><h1 id="appTitle">Serikat Kematian</h1><button class="btn sec sm" onclick="logout()">Keluar</button></header>
+  <nav id="nav"></nav>
+  <main>
+    <section id="tab-dashboard"></section>
+    <section id="tab-anggota" class="hide"></section>
+    <section id="tab-iuran" class="hide"></section>
+    <section id="tab-kas" class="hide"></section>
+    <section id="tab-pengaturan" class="hide"></section>
+  </main>
+</div>
+
+<dialog id="dlg"><form method="dialog" id="dlgForm" onsubmit="return false"></form></dialog>
+<div id="toast"></div>
+
+<script>
+/* ============ GANTI DENGAN URL WEB APP GAS ANDA ============ */
+const API_URL = 'https://script.google.com/macros/s/GANTI_DENGAN_ID_DEPLOYMENT/exec';
+/* ========================================================== */
+
+const BULAN = ['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+const TABS = [['dashboard','Dashboard'],['anggota','Anggota'],['iuran','Iuran'],['kas','Kas'],['pengaturan','Pengaturan']];
+let S = {anggota:[],iuran:[],kas:[],pengaturan:{}};
+let token = sessionStorage.getItem('sk_token') || '';
+let curTab = 'dashboard';
+let fIuran = {bulan:new Date().getMonth()+1, tahun:new Date().getFullYear()};
+let qAnggota = '';
+
+/* ---------- util ---------- */
+const $ = id => document.getElementById(id);
+const rp = n => 'Rp ' + new Intl.NumberFormat('id-ID').format(Number(n)||0);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const todayStr = () => { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+function toast(m){const t=$('toast');t.textContent=m;t.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>t.style.display='none',3000);}
+function waLink(no, text){
+  let n=String(no||'').replace(/\D/g,''); if(!n) return '';
+  if(n.startsWith('0')) n='62'+n.slice(1);
+  return 'https://wa.me/'+n+'?text='+encodeURIComponent(text);
+}
+
+/* ---------- API ---------- */
+async function api(action, payload={}){
+  const res = await fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(Object.assign({action,token},payload))});
+  const j = await res.json();
+  if(j.auth===false){ logout(true); throw new Error(j.error); }
+  if(!j.ok) throw new Error(j.error||'Terjadi kesalahan');
+  return j;
+}
+async function run(fn, okMsg){
+  try{ await fn(); if(okMsg) toast(okMsg); }catch(e){ toast(e.message); }
+}
+
+/* ---------- login ---------- */
+async function doLogin(){
+  const pin = $('pin').value.trim();
+  if(!pin) return toast('Isi PIN');
+  await run(async()=>{
+    const j = await api('login',{pin});
+    token = j.token; sessionStorage.setItem('sk_token',token);
+    await startApp();
+  });
+}
+function logout(silent){
+  token=''; sessionStorage.removeItem('sk_token');
+  $('app').classList.add('hide'); $('login').classList.remove('hide'); $('pin').value='';
+  if(!silent) toast('Anda telah keluar');
+}
+$('pin').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+
+async function startApp(){
+  await reload();
+  $('login').classList.add('hide'); $('app').classList.remove('hide');
+  buildNav(); showTab(curTab);
+}
+async function reload(){
+  const j = await api('getAll');
+  S = j.data;
+  const nm = S.pengaturan['Nama Serikat'] || 'Serikat Kematian';
+  $('appTitle').textContent = nm; $('loginTitle').textContent = nm; document.title = nm;
+}
+
+/* ---------- navigasi ---------- */
+function buildNav(){
+  $('nav').innerHTML = TABS.map(t=>`<button data-t="${t[0]}" onclick="showTab('${t[0]}')">${t[1]}</button>`).join('');
+}
+function showTab(t){
+  curTab=t;
+  TABS.forEach(x=>$('tab-'+x[0]).classList.toggle('hide',x[0]!==t));
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('active',b.dataset.t===t));
+  ({dashboard:rDash,anggota:rAnggota,iuran:rIuran,kas:rKas,pengaturan:rPengaturan})[t]();
+}
+const refresh = () => showTab(curTab);
+
+/* ---------- perhitungan ---------- */
+const iuranBulanan = () => Number(S.pengaturan['Iuran Bulanan'])||0;
+const santunanDef = () => Number(S.pengaturan['Santunan Kematian'])||0;
+function saldo(){
+  let masuk=0,keluar=0;
+  S.kas.forEach(k=>{ if(k.Jenis==='Masuk') masuk+=Number(k.Jumlah); else keluar+=Number(k.Jumlah); });
+  return {masuk,keluar,saldo:masuk-keluar};
+}
+function belumBayar(bulan,tahun){
+  const paid = new Set(S.iuran.filter(i=>Number(i.Bulan)===bulan&&Number(i.Tahun)===tahun).map(i=>i['ID Anggota']));
+  return S.anggota.filter(a=>a.Status==='Aktif' && !paid.has(a.ID));
+}
+
+/* ---------- dialog form generik ---------- */
+function openForm(title, fields, onSubmit, submitLabel='Simpan'){
+  const html = fields.map(f=>{
+    const v = f.value==null?'':f.value;
+    let inp;
+    if(f.type==='select') inp = `<select name="${f.k}">${f.options.map(o=>`<option value="${esc(o[0])}" ${String(o[0])===String(v)?'selected':''}>${esc(o[1])}</option>`).join('')}</select>`;
+    else if(f.type==='textarea') inp = `<textarea name="${f.k}" rows="2">${esc(v)}</textarea>`;
+    else inp = `<input name="${f.k}" type="${f.type||'text'}" value="${esc(v)}" ${f.type==='number'?'inputmode="numeric" min="0"':''}>`;
+    return `<label>${esc(f.label)}</label>${inp}`;
+  }).join('');
+  $('dlgForm').innerHTML = `<h3>${esc(title)}</h3>${html}
+    <div class="row" style="margin-top:16px;justify-content:flex-end">
+      <button type="button" class="btn sec" onclick="$('dlg').close()">Batal</button>
+      <button type="submit" class="btn">${esc(submitLabel)}</button></div>`;
+  $('dlgForm').onsubmit = async ev=>{
+    ev.preventDefault();
+    const data = {}; new FormData($('dlgForm')).forEach((v,k)=>data[k]=v);
+    await run(async()=>{ await onSubmit(data); $('dlg').close(); await reload(); refresh(); },'Tersimpan');
+  };
+  $('dlg').showModal();
+}
+async function confirmDel(msg, fn){
+  if(!confirm(msg)) return;
+  await run(async()=>{ await fn(); await reload(); refresh(); },'Terhapus');
+}
+
+/* ---------- dashboard ---------- */
+function rDash(){
+  const now=new Date(), b=now.getMonth()+1, t=now.getFullYear();
+  const s=saldo();
+  const aktif=S.anggota.filter(a=>a.Status==='Aktif').length;
+  const bb=belumBayar(b,t);
+  const terkumpul=S.iuran.filter(i=>Number(i.Bulan)===b&&Number(i.Tahun)===t).reduce((x,i)=>x+Number(i.Jumlah),0);
+  const nm = S.pengaturan['Nama Serikat']||'Serikat';
+  const last = [...S.kas].sort((x,y)=>String(y.Tanggal).localeCompare(String(x.Tanggal))).slice(0,6);
+  $('tab-dashboard').innerHTML = `
+  <div class="grid" style="margin-bottom:14px">
+    <div class="stat"><small>Saldo Kas</small><b>${rp(s.saldo)}</b></div>
+    <div class="stat"><small>Anggota Aktif</small><b>${aktif}</b></div>
+    <div class="stat"><small>Iuran ${BULAN[b-1]}</small><b>${rp(terkumpul)}</b></div>
+    <div class="stat"><small>Belum Bayar</small><b>${bb.length} orang</b></div>
+  </div>
+  <div class="card"><h3>Belum bayar iuran ${BULAN[b-1]} ${t}</h3>
+    ${bb.length? `<div class="tw"><table><tbody>${bb.map(a=>{
+      const wa = waLink(a.WA,`Assalamualaikum ${a.Nama}, mengingatkan iuran ${nm} bulan ${BULAN[b-1]} ${t} sebesar ${rp(iuranBulanan())}. Terima kasih.`);
+      return `<tr><td>${esc(a.Nama)}</td><td style="text-align:right">${wa?`<a class="btn sm sec" target="_blank" rel="noopener" href="${wa}">Ingatkan WA</a> `:''}<button class="btn sm" onclick="formIuran('${a.ID}',${b},${t})">Catat bayar</button></td></tr>`;}).join('')}</tbody></table></div>`
+      : '<p class="muted">Semua anggota aktif sudah membayar. 🎉</p>'}
+  </div>
+  <div class="card"><h3>Transaksi kas terakhir</h3>
+    ${last.length? `<div class="tw"><table><tbody>${last.map(k=>`<tr><td>${esc(k.Tanggal)}</td><td>${esc(k.Keterangan)}</td><td class="${k.Jenis==='Masuk'?'in':'out'}" style="text-align:right">${k.Jenis==='Masuk'?'+':'-'}${rp(k.Jumlah)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">Belum ada transaksi.</p>'}
+  </div>`;
+}
+
+/* ---------- anggota ---------- */
+function rAnggota(){
+  const q=qAnggota.toLowerCase();
+  const list=S.anggota.filter(a=>!q||String(a.Nama).toLowerCase().includes(q)||String(a.WA).includes(q));
+  $('tab-anggota').innerHTML = `
+  <div class="row"><input class="grow" placeholder="Cari nama / WA…" value="${esc(qAnggota)}" oninput="qAnggota=this.value;rAnggotaTable()">
+    <button class="btn" onclick="formAnggota()">+ Anggota</button></div>
+  <div class="card tw" id="tblAnggota"></div>`;
+  rAnggotaTable();
+}
+function rAnggotaTable(){
+  const q=qAnggota.toLowerCase();
+  const list=S.anggota.filter(a=>!q||String(a.Nama).toLowerCase().includes(q)||String(a.WA).includes(q));
+  $('tblAnggota').innerHTML = list.length? `<table><thead><tr><th>Nama</th><th>Tanggungan</th><th>Status</th><th></th></tr></thead><tbody>${
+    list.map(a=>`<tr><td><b>${esc(a.Nama)}</b><br><small class="muted">${esc(a.WA)} · masuk ${esc(a['Tanggal Masuk'])}</small>${a.Catatan?`<br><small class="muted">${esc(a.Catatan)}</small>`:''}</td>
+      <td>${esc(a.Tanggungan)||0}</td><td><span class="badge ${esc(a.Status)}">${esc(a.Status)}</span></td>
+      <td style="white-space:nowrap"><button class="btn sm sec" onclick="formAnggota('${a.ID}')">Ubah</button>
+      ${a.Status==='Aktif'?`<button class="btn sm" onclick="formSantunan('${a.ID}')">Santunan</button>`:''}
+      <button class="btn sm dng" onclick="hapusAnggota('${a.ID}')">Hapus</button></td></tr>`).join('')}</tbody></table>` : '<p class="muted">Belum ada anggota.</p>';
+}
+function formAnggota(id){
+  const a = S.anggota.find(x=>x.ID===id) || {Status:'Aktif','Tanggal Masuk':todayStr(),Tanggungan:0};
+  openForm(id?'Ubah Anggota':'Tambah Anggota',[
+    {k:'Nama',label:'Nama',value:a.Nama},
+    {k:'WA',label:'No. WhatsApp',type:'tel',value:a.WA},
+    {k:'Tanggal Masuk',label:'Tanggal Masuk',type:'date',value:a['Tanggal Masuk']},
+    {k:'Tanggungan',label:'Jumlah Tanggungan',type:'number',value:a.Tanggungan},
+    {k:'Status',label:'Status',type:'select',value:a.Status,options:[['Aktif','Aktif'],['Nonaktif','Nonaktif'],['Wafat','Wafat']]},
+    {k:'Catatan',label:'Catatan',type:'textarea',value:a.Catatan}
+  ], d=>{ if(id) d.ID=id; return api('saveAnggota',{data:d}); });
+}
+function hapusAnggota(id){
+  const a=S.anggota.find(x=>x.ID===id);
+  confirmDel(`Hapus anggota "${a.Nama}"? Riwayat iuran tetap tersimpan.`,()=>api('deleteAnggota',{id}));
+}
+function formSantunan(id){
+  const a=S.anggota.find(x=>x.ID===id);
+  openForm('Santunan Kematian – '+a.Nama,[
+    {k:'jumlah',label:'Jumlah Santunan (Rp)',type:'number',value:santunanDef()},
+    {k:'tanggal',label:'Tanggal',type:'date',value:todayStr()},
+    {k:'keterangan',label:'Keterangan (opsional)',value:''}
+  ], d=>api('santunan',{anggotaId:id,...d}),'Cairkan');
+}
+
+/* ---------- iuran ---------- */
+function rIuran(){
+  const {bulan,tahun}=fIuran;
+  const thn=[]; for(let y=new Date().getFullYear()+1;y>=new Date().getFullYear()-5;y--) thn.push(y);
+  const list=S.iuran.filter(i=>Number(i.Bulan)===bulan&&Number(i.Tahun)===tahun);
+  const total=list.reduce((x,i)=>x+Number(i.Jumlah),0);
+  const bb=belumBayar(bulan,tahun);
+  $('tab-iuran').innerHTML = `
+  <div class="row">
+    <select style="width:auto" onchange="fIuran.bulan=+this.value;rIuran()">${BULAN.map((n,i)=>`<option value="${i+1}" ${i+1===bulan?'selected':''}>${n}</option>`).join('')}</select>
+    <select style="width:auto" onchange="fIuran.tahun=+this.value;rIuran()">${thn.map(y=>`<option ${y===tahun?'selected':''}>${y}</option>`).join('')}</select>
+    <span class="grow muted">Terkumpul: <b>${rp(total)}</b> (${list.length} orang)</span>
+    <button class="btn" onclick="formIuran('',${bulan},${tahun})">+ Catat Iuran</button></div>
+  <div class="card tw"><h3>Sudah bayar</h3>${list.length?`<table><thead><tr><th>Nama</th><th>Tgl Bayar</th><th>Jumlah</th><th></th></tr></thead><tbody>${list.map(i=>`<tr><td>${esc(i.Nama)}</td><td>${esc(i['Tanggal Bayar'])}</td><td>${rp(i.Jumlah)}</td><td><button class="btn sm dng" onclick="hapusIuran('${i.ID}')">Hapus</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted">Belum ada pembayaran.</p>'}</div>
+  <div class="card tw"><h3>Belum bayar (${bb.length})</h3>${bb.length?`<table><tbody>${bb.map(a=>`<tr><td>${esc(a.Nama)}</td><td style="text-align:right"><button class="btn sm" onclick="formIuran('${a.ID}',${bulan},${tahun})">Catat bayar</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted">Semua sudah membayar.</p>'}</div>`;
+}
+function formIuran(anggotaId,bulan,tahun){
+  const aktif=S.anggota.filter(a=>a.Status==='Aktif');
+  if(!aktif.length) return toast('Belum ada anggota aktif');
+  openForm('Catat Iuran',[
+    {k:'ID Anggota',label:'Anggota',type:'select',value:anggotaId||aktif[0].ID,options:aktif.map(a=>[a.ID,a.Nama])},
+    {k:'Bulan',label:'Bulan',type:'select',value:bulan,options:BULAN.map((n,i)=>[i+1,n])},
+    {k:'Tahun',label:'Tahun',type:'number',value:tahun},
+    {k:'Jumlah',label:'Jumlah (Rp)',type:'number',value:iuranBulanan()},
+    {k:'Tanggal Bayar',label:'Tanggal Bayar',type:'date',value:todayStr()}
+  ], d=>api('saveIuran',{data:d}));
+}
+function hapusIuran(id){ confirmDel('Hapus catatan iuran ini? Transaksi kas terkait ikut terhapus.',()=>api('deleteIuran',{id})); }
+
+/* ---------- kas ---------- */
+function rKas(){
+  const s=saldo();
+  const list=[...S.kas].sort((x,y)=>String(y.Tanggal).localeCompare(String(x.Tanggal)));
+  $('tab-kas').innerHTML = `
+  <div class="grid" style="margin-bottom:14px">
+    <div class="stat"><small>Total Masuk</small><b class="in">${rp(s.masuk)}</b></div>
+    <div class="stat"><small>Total Keluar</small><b class="out">${rp(s.keluar)}</b></div>
+    <div class="stat"><small>Saldo</small><b>${rp(s.saldo)}</b></div></div>
+  <div class="row"><span class="grow"></span><button class="btn" onclick="formKas()">+ Transaksi</button></div>
+  <div class="card tw">${list.length?`<table><thead><tr><th>Tanggal</th><th>Keterangan</th><th style="text-align:right">Jumlah</th><th></th></tr></thead><tbody>${list.map(k=>`<tr><td>${esc(k.Tanggal)}</td><td>${esc(k.Keterangan)}</td><td class="${k.Jenis==='Masuk'?'in':'out'}" style="text-align:right;white-space:nowrap">${k.Jenis==='Masuk'?'+':'-'}${rp(k.Jumlah)}</td><td style="white-space:nowrap">${String(k.ID).startsWith('K-')?'':`<button class="btn sm sec" onclick="formKas('${k.ID}')">Ubah</button> `}<button class="btn sm dng" onclick="hapusKas('${k.ID}')">Hapus</button></td></tr>`).join('')}</tbody></table>`:'<p class="muted">Belum ada transaksi.</p>'}</div>`;
+}
+function formKas(id){
+  const k=S.kas.find(x=>x.ID===id)||{Jenis:'Masuk',Tanggal:todayStr()};
+  openForm(id?'Ubah Transaksi':'Transaksi Kas',[
+    {k:'Tanggal',label:'Tanggal',type:'date',value:k.Tanggal},
+    {k:'Jenis',label:'Jenis',type:'select',value:k.Jenis,options:[['Masuk','Masuk'],['Keluar','Keluar']]},
+    {k:'Jumlah',label:'Jumlah (Rp)',type:'number',value:k.Jumlah},
+    {k:'Keterangan',label:'Keterangan',value:k.Keterangan}
+  ], d=>{ if(id) d.ID=id; return api('saveKas',{data:d}); });
+}
+function hapusKas(id){
+  if(String(id).startsWith('K-')) return toast('Transaksi iuran dihapus lewat menu Iuran');
+  confirmDel('Hapus transaksi ini?',()=>api('deleteKas',{id}));
+}
+
+/* ---------- pengaturan ---------- */
+function rPengaturan(){
+  const p=S.pengaturan;
+  $('tab-pengaturan').innerHTML = `<div class="card"><h3>Pengaturan</h3>
+  <form onsubmit="simpanPengaturan(event)">
+    <label>Nama Serikat</label><input name="Nama Serikat" value="${esc(p['Nama Serikat'])}">
+    <label>Iuran Bulanan (Rp)</label><input name="Iuran Bulanan" type="number" value="${esc(p['Iuran Bulanan'])}">
+    <label>Santunan Kematian (Rp)</label><input name="Santunan Kematian" type="number" value="${esc(p['Santunan Kematian'])}">
+    <label>PIN Admin baru (kosongkan jika tidak diganti)</label><input name="PIN Admin" type="password" inputmode="numeric" autocomplete="new-password">
+    <div style="margin-top:14px"><button class="btn">Simpan</button></div>
+  </form></div>`;
+}
+function simpanPengaturan(ev){
+  ev.preventDefault();
+  const d={}; new FormData(ev.target).forEach((v,k)=>d[k]=v);
+  run(async()=>{ await api('savePengaturan',{data:d}); await reload(); refresh(); },'Pengaturan tersimpan');
+}
+
+/* ---------- mulai ---------- */
+if(token){ startApp().catch(()=>logout(true)); }
+</script>
+</body>
+</html>
