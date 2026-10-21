@@ -257,7 +257,7 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzayXGaw8GHF2lU4AFMDQjO
 const BULAN=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const BLN=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
 const MAIN=['beranda','anggota','iuran','kas','akun'];
-const VIEWS=MAIN.concat(['tunggakan','laporan','santunan']);
+const VIEWS=MAIN.concat(['tunggakan','laporan','santunan','rute']);
 
 /* ---------- util ---------- */
 const $=id=>document.getElementById(id);
@@ -424,7 +424,7 @@ function cpHdr(title,withBack){
 }
 function render(){
   if($('app').classList.contains('hide'))return;
-  ({beranda:vBeranda,anggota:vAnggota,iuran:vIuran,kas:vKas,akun:vAkun,tunggakan:vTunggakan,laporan:vLaporan,santunan:vSantunan}[view]||vBeranda)();
+  ({beranda:vBeranda,anggota:vAnggota,iuran:vIuran,kas:vKas,akun:vAkun,tunggakan:vTunggakan,laporan:vLaporan,santunan:vSantunan,rute:vRute}[view]||vBeranda)();
   const act=MAIN.includes(view)?view:'beranda';
   document.querySelectorAll('#mnav button').forEach(b=>b.classList.toggle('on',b.dataset.v===act));
   const m={anggota:['Anggota','formAnggota()'],iuran:['Catat Iuran',"formIuran('',fIuran.b,fIuran.t)"],kas:['Transaksi','formKas()'],santunan:['Catat Wafat','formWafat()']}[view];
@@ -495,7 +495,7 @@ function vBeranda(){
   const last=[...S.kas].sort((x,y)=>String(y.Tanggal).localeCompare(String(x.Tanggal))).slice(0,5);
   setHdr(`<div class="hrow"><div><small>Assalamualaikum 👋</small><h1>${esc(nm())}</h1></div><button class="ib" onclick="doRefresh()" aria-label="Muat ulang">${ic('refresh')}</button></div>`);
   const menu=[['users','Anggota',"go('anggota')",''],['receipt','Catat Iuran',"formIuran('',fIuran.b,fIuran.t)",''],['alert','Tunggakan',"go('tunggakan')",'r'],['heart','Santunan',"go('santunan')",'o'],
-    ['wallet','Kas',"go('kas')",'b'],['chart','Laporan',"go('laporan')",'b'],['plus','Tambah Anggota',"formAnggota()",''],['user','Akun',"go('akun')",'']];
+    ['wallet','Kas',"go('kas')",'b'],['chart','Laporan',"go('laporan')",'b'],['plus','Tambah Anggota',"formAnggota()",''],['home','Rute Tagih',"go('rute')",'o']];
   $('page').innerHTML=`
   <div class="sumcard"><div class="lbl">Saldo Kas</div><div class="big">${rp(s.saldo)}</div>
     <div class="prog"><i style="width:${pct}%"></i></div>
@@ -649,14 +649,14 @@ function vIuran(){
   <div class="card"><div class="row2" style="align-items:center;margin-bottom:10px"><div><small style="color:var(--mu)">Terkumpul</small><div style="font-size:22px;font-weight:800">${rp(total)}</div></div><div style="text-align:right"><small style="color:var(--mu)">Lunas</small><div style="font-size:22px;font-weight:800">${paid.length}/${due}</div></div></div><div class="prog"><i style="width:${pct}%"></i></div></div>
   <div class="chips"><button class="chip ${fIuran.tab==='belum'?'on':''}" onclick="setIT('belum')">Belum bayar (${bb.length})</button><button class="chip ${fIuran.tab==='sudah'?'on':''}" onclick="setIT('sudah')">Sudah bayar (${paid.length})</button></div>${body}</div>`;
 }
-function formIuran(anggotaId,b,t){
+function formIuran(anggotaId,b,t,nBulan){
   const aktif=S.anggota.filter(a=>a.Status==='Aktif');
   if(!aktif.length){toast('Belum ada anggota aktif');return;}
   openForm('Catat Iuran',[
     {k:'ID Anggota',label:'Anggota',type:'select',value:anggotaId||aktif[0].ID,options:aktif.map(a=>[a.ID,a.Nama+(a['No Anggota']?' ('+a['No Anggota']+')':'')])},
     {k:'Bulan',label:'Mulai bulan',type:'select',value:b,options:BULAN.map((n,i)=>[i+1,n])},
     {k:'Tahun',label:'Tahun',type:'number',value:t},
-    {k:'Jumlah Bulan',label:'Bayar untuk berapa bulan?',type:'select',value:1,options:Array.from({length:12},(_,i)=>[i+1,(i+1)+' bulan']),hint:'Pilih lebih dari 1 bila anggota membayar di muka atau melunasi tunggakan.'},
+    {k:'Jumlah Bulan',label:'Bayar untuk berapa bulan?',type:'select',value:Math.min(12,Math.max(1,nBulan||1)),options:Array.from({length:12},(_,i)=>[i+1,(i+1)+' bulan']),hint:'Pilih lebih dari 1 bila anggota membayar di muka atau melunasi tunggakan.'},
     {k:'Jumlah',label:'Jumlah per bulan (Rp)',type:'number',value:iuranBln()},
     {k:'Tanggal Bayar',label:'Tanggal bayar',type:'date',value:todayStr()}
   ],async d=>{const j=await api('saveIuran',{data:d});window.afterSave=j.wa==='terkirim'?()=>toast('Bukti terkirim otomatis ke WhatsApp anggota'):()=>{waBukti(j.ids||[]);if(j.wa==='gagal')toast('Kirim otomatis gagal. Kirim manual lewat tombol ini.');};return j.added+' bulan iuran tercatat'+(j.skipped?` (${j.skipped} sudah lunas, dilewati)`:'');});
@@ -704,7 +704,56 @@ function vTunggakan(){
   const l=menunggak(),nb=l.reduce((x,a)=>x+a._t.length,0);
   $('page').innerHTML=`<div class="pad"><div class="stats"><div class="stat"><small>Anggota menunggak</small><b class="${l.length?'out':''}">${l.length} orang</b></div><div class="stat"><small>Total tunggakan</small><b class="${l.length?'out':''}">${rp(nb*iuranBln())}</b></div></div>
   <p class="note" style="margin:0 0 10px">Dihitung dari 12 bulan terakhir sejak anggota bergabung.</p>
+  ${l.length?`<button class="btn block" style="margin-bottom:12px" onclick="go('rute')">${ic('home','sm')} Mulai tagih keliling (urut rumah)</button>`:''}
   ${l.length?`<div class="list">${l.map(tgItem).join('')}</div>`:empty('check','Tidak ada tunggakan 🎉')}</div>`;
+}
+
+/* ---------- RUTE TAGIH (urutan rumah untuk tagih jalan kaki) ---------- */
+let fRute={mode:'tagih',skip:[],draft:null};
+const rNo=a=>Number(a['No Rute'])||0;
+const ruteSorted=l=>[...l].sort((x,y)=>(rNo(x)||1e9)-(rNo(y)||1e9));
+function setRM(m){fRute.mode=m;fRute.draft=null;vRute();}
+function vRute(){
+  cpHdr('Rute Tagih',true);
+  const atur=fRute.mode==='atur';
+  $('page').innerHTML=`<div class="pad"><div class="chips"><button class="chip ${!atur?'on':''}" onclick="setRM('tagih')">Tagih keliling</button><button class="chip ${atur?'on':''}" onclick="setRM('atur')">Atur urutan rumah</button></div>${atur?rAtur():rTagih()}</div>`;
+}
+function rTagih(){
+  const n=new Date(),all=ruteSorted(menunggak());
+  const todo=all.filter(a=>!fRute.skip.includes(a.ID)),skipped=all.filter(a=>fRute.skip.includes(a.ID));
+  const unset=all.filter(a=>!rNo(a)).length;
+  const nb=todo.reduce((x,a)=>x+a._t.length,0);
+  const row=(a,sk)=>{
+    const wa=waLink(a.WA,remindText(a,n.getMonth()+1,n.getFullYear()));
+    return `<div class="item" style="cursor:default"><div class="av">${rNo(a)||'–'}</div><div class="mid"><b>${esc(a.Nama)}</b><small>${a._t.length} bln · ${rp(a._t.length*iuranBln())}</small></div><div class="end" style="flex-direction:row;gap:6px">${wa?`<a class="ib dark" target="_blank" rel="noopener" href="${wa}" aria-label="Tagih lewat WhatsApp" style="width:36px;height:36px;color:#1faa59">${ic('chat','sm')}</a>`:''}<button class="btn sm" onclick="formIuran('${esc(a.ID)}',${a._t[0].bulan},${a._t[0].tahun},${a._t.length})">Bayar</button>${sk?`<button class="ib dark" style="width:36px;height:36px" onclick="ruteSkip('${esc(a.ID)}',0)" aria-label="Kembalikan ke daftar">${ic('refresh','sm')}</button>`:`<button class="ib dark" style="width:36px;height:36px" onclick="ruteSkip('${esc(a.ID)}',1)" aria-label="Tidak di rumah, lewati">${ic('x','sm')}</button>`}</div></div>`;
+  };
+  return `<div class="stats"><div class="stat"><small>Sisa ditagih</small><b>${todo.length} rumah</b></div><div class="stat"><small>Total</small><b class="out">${rp(nb*iuranBln())}</b></div></div>
+  ${unset?`<p class="note" style="margin:0 0 10px">${unset} anggota belum punya nomor rute, ditaruh di bagian akhir. Isi lewat tab "Atur urutan rumah".</p>`:''}
+  ${todo.length?`<div class="list">${todo.map(a=>row(a,0)).join('')}</div>`:empty('check',all.length?'Semua rumah sudah dikunjungi 🎉':'Tidak ada tunggakan 🎉')}
+  ${skipped.length?`<div class="sec" style="margin:16px 0 8px"><h2>Tidak di rumah (${skipped.length})</h2></div><div class="list" style="margin:0">${skipped.map(a=>row(a,1)).join('')}</div>`:''}`;
+}
+function ruteSkip(id,on){const s=fRute.skip,i=s.indexOf(id);if(on&&i<0)s.push(id);if(!on&&i>=0)s.splice(i,1);vRute();}
+function rAtur(){
+  const aktif=S.anggota.filter(a=>a.Status==='Aktif'),by={};aktif.forEach(a=>by[a.ID]=a);
+  if(!fRute.draft)fRute.draft=ruteSorted(aktif.filter(a=>rNo(a))).map(a=>a.ID);
+  fRute.draft=fRute.draft.filter(id=>by[id]);
+  const d=fRute.draft,rest=aktif.filter(a=>!d.includes(a.ID));
+  const sm='width:36px;height:36px';
+  return `<p class="note" style="margin:0 0 10px">Ketuk nama di daftar "Belum diurutkan" sesuai urutan rumah yang Anda lewati. Tiap ketukan menambah satu nomor di bawah urutan. Gunakan panah untuk menggeser, atau ketuk nomor untuk memindahkan ke posisi tertentu.</p>
+  <button class="btn block" style="margin-bottom:12px" onclick="ruteSave()">${ic('check','sm')} Simpan urutan (${d.length} rumah)</button>
+  <div class="sec" style="margin:8px 0"><h2>Urutan rumah (${d.length})</h2></div>
+  ${d.length?`<div class="list" style="margin:0">${d.map((id,i)=>`<div class="item" style="cursor:default;min-height:56px"><button class="av" style="border:0;cursor:pointer" onclick="ruteJump(${i})" aria-label="Pindahkan nomor">${i+1}</button><div class="mid"><b>${esc(by[id].Nama)}</b><small>${esc(by[id]['No Anggota']||'')}</small></div><div class="end" style="flex-direction:row;gap:4px"><button class="ib dark" style="${sm}" onclick="ruteMove(${i},${i-1})" aria-label="Naik">${ic('left','sm').replace('class="ic sm"','class="ic sm" style="transform:rotate(90deg)"')}</button><button class="ib dark" style="${sm}" onclick="ruteMove(${i},${i+1})" aria-label="Turun">${ic('left','sm').replace('class="ic sm"','class="ic sm" style="transform:rotate(-90deg)"')}</button><button class="ib dark" style="${sm}" onclick="ruteDel(${i})" aria-label="Keluarkan dari urutan">${ic('x','sm')}</button></div></div>`).join('')}</div>`:empty('inbox','Belum ada urutan')}
+  <div class="sec" style="margin:16px 0 8px"><h2>Belum diurutkan (${rest.length})</h2></div>
+  ${rest.length?`<div class="list" style="margin:0">${rest.map(a=>`<button class="item" onclick="ruteAdd('${esc(a.ID)}')"><div class="av">${esc(initials(a.Nama))}</div><div class="mid"><b>${esc(a.Nama)}</b><small>${esc(a['No Anggota']||'')}</small></div><div class="end">${ic('plus','sm')}</div></button>`).join('')}</div>`:empty('check','Semua anggota aktif sudah diurutkan')}`;
+}
+function ruteAdd(id){fRute.draft.push(id);vRute();}
+function ruteDel(i){fRute.draft.splice(i,1);vRute();}
+function ruteMove(i,j){const d=fRute.draft;if(j<0||j>=d.length)return;d.splice(j,0,d.splice(i,1)[0]);vRute();}
+function ruteJump(i){const n=parseInt(prompt('Pindahkan ke nomor berapa?',i+1),10);if(!n)return;ruteMove(i,Math.min(Math.max(n,1),fRute.draft.length)-1);}
+async function ruteSave(){
+  if(!fRute.draft||!fRute.draft.length){toast('Urutan masih kosong');return;}
+  try{await api('simpanRute',{urutan:fRute.draft});await reload();fRute.draft=null;fRute.mode='tagih';render();toast('Urutan rute tersimpan');}
+  catch(e){toast(e.message);}
 }
 
 /* ---------- LAPORAN ---------- */
@@ -742,7 +791,7 @@ function vAkun(){
     <p class="msg" id="setErr"></p>
     <button class="btn block" id="setOk">Simpan Pengaturan</button>
   </form></div>
-  <div class="card"><b>Cek Kepesertaan untuk Anggota</b><p class="note" style="margin:6px 0 12px">Bagikan tautan ini ke anggota. Mereka bisa cek status iuran sendiri dengan nomor anggota dan 4 digit akhir WhatsApp.</p>
+  <div class="card"><b>Cek Kepesertaan untuk Anggota</b><p class="note" style="margin:6px 0 12px">Bagikan tautan ini ke anggota. Mereka bisa cek status iuran sendiri dengan nomor anggota dan kode rahasia 6 karakter.</p>
     <div class="row2"><button class="btn out sm" onclick="copyLink()">${ic('copy','sm')} Salin tautan</button><a class="btn wa sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('Cek status iuran '+nm()+' di sini: '+link)}" style="text-decoration:none">${ic('share','sm')} Bagikan</a></div></div>
   ${deferredInstall?`<button class="btn out block" style="margin-bottom:12px" onclick="installApp()">${ic('download','sm')} Pasang aplikasi di HP</button>`:''}
   <button class="btn out block" onclick="logout()">${ic('logout','sm')} Keluar</button>
